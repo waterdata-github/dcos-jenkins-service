@@ -18,8 +18,6 @@ sass:
 baseurl: "/jenkins-mesos"
 highlighter: pygments
 lsi: false
-markdown: redcarpet
-redcarpet:
-  extensions: [with_toc_data, tables]
+markdown: kramdown
 safe: true
 source: .
