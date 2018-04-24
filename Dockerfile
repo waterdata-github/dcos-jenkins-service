@@ -11,10 +11,10 @@ ENV JENKINS_FOLDER /usr/share/jenkins
 
 # Build Args
 ARG LIBMESOS_DOWNLOAD_URL=https://downloads.mesosphere.io/libmesos-bundle/libmesos-bundle-1.11.0.tar.gz
-ARG LIBMESOS_DOWNLOAD_SHA256=2d16799ec9e6af0d3c49ff2505a63b64ae625b4f
+ARG LIBMESOS_DOWNLOAD_SHA256=bd4a785393f0477da7f012bf9624aa7dd65aa243c94d38ffe94adaa10de30274
 ARG BLUEOCEAN_VERSION=1.5.0
 ARG JENKINS_STAGING=/usr/share/jenkins/ref/
-ARG MESOS_PLUG_HASH=644d8b74a8565260a777fcfdf40e0c9d315a912d
+ARG MESOS_PLUG_HASH=2d16799ec9e6af0d3c49ff2505a63b64ae625b4f
 ARG PROMETHEUS_PLUG_HASH=a347bf2c63efe59134c15b8ef83a4a1f627e3b5d
 
 # Default policy according to https://wiki.jenkins.io/display/JENKINS/Configuring+Content+Security+Policy
