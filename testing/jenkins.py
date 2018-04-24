@@ -4,6 +4,7 @@ import retrying
 
 import sdk_cmd
 import sdk_marathon
+
 from shakedown import *
 from xml.etree import ElementTree
 
@@ -41,7 +42,7 @@ def create_job(service_name, job_name, schedule_frequency, existtimeout_seconds=
     headers = {'Content-Type': 'application/xml'}  
     job_config = ''
     url = "{}createItem?name={}".format(DCOS_SERVICE_URL, job_name)  
-    job_config = build_job(schedule_frequency)
+    job_config = construct_job_config(schedule_frequency)
     
     r = http.post(url, headers=headers, data=job_config)
 
@@ -49,7 +50,7 @@ def create_job(service_name, job_name, schedule_frequency, existtimeout_seconds=
 
 
 #schedule frquency will run a job every n minutes
-def build_job(schedule_frequency):
+def construct_job_config(schedule_frequency):
     here = os.path.dirname(__file__)
     updated_job_config = ElementTree.parse(os.path.join(here, 'testData', 'test-job.xml'))
 
