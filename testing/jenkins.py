@@ -4,8 +4,8 @@ import retrying
 
 import sdk_cmd
 import sdk_marathon
-
 from shakedown import *
+from xml.etree import ElementTree
 
 
 TIMEOUT_SECONDS = 15 * 60
@@ -16,18 +16,50 @@ log = logging.getLogger(__name__)
 DCOS_SERVICE_URL = dcos_service_url('jenkins')
 
 
-def create_job(service_name, job_name, timeout_seconds=TIMEOUT_SECONDS):   
+def wait_for_jenkins_marathon_app_healthy(service_name, timeout_seconds=TIMEOUT_SECONDS):
+
+    @retrying.retry(
+        wait_fixed=1000,
+        stop_max_delay=timeout_seconds*1000,
+        retry_on_result=lambda res: not res)
+    def fn():
+        return is_jenkins_marathon_app_healthy(service_name, timeout_seconds)
+
+    return fn()
+
+
+def is_jenkins_marathon_app_healthy(service_name, timeout_seconds=TIMEOUT_SECONDS):
+    tasks_running_count = sdk_marathon.get_task_count(service_name, 'tasksRunning', timeout_seconds)
+    tasks_healthy_count = sdk_marathon.get_task_count(service_name, 'tasksRunning', timeout_seconds)
+    log.info("tasks_running: {}".format(tasks_running_count))
+    log.info("tasks_healthy: {}".format(tasks_healthy_count))
+
+    return tasks_running_count == 1 and tasks_healthy_count == 1
+
+def create_job(service_name, job_name, schedule_frequency, existtimeout_seconds=TIMEOUT_SECONDS):   
     here = os.path.dirname(__file__)
     headers = {'Content-Type': 'application/xml'}  
     job_config = ''
-    url = '{}createItem?name={}'.format(DCOS_SERVICE_URL, job_name)
-    #alter config at /testData/test-job.xml to alter created job
-    with open(os.path.join(here, 'testData', 'test-job.xml')) as test_job:
-        job_config = test_job.read()
-
-    logger.info('creating job with config {}'.format(job_config))
+    url = "{}createItem?name={}".format(DCOS_SERVICE_URL, job_name)  
+    job_config = build_job(schedule_frequency)
+    
     r = http.post(url, headers=headers, data=job_config)
-    logger.info('Create job return code {}'.format(str(r.status_code)))
+
+    return r
+
+
+#schedule frquency will run a job every n minutes
+def build_job(schedule_frequency):
+    here = os.path.dirname(__file__)
+    updated_job_config = ElementTree.parse(os.path.join(here, 'testData', 'test-job.xml'))
+
+    cron = '*/{} * * * *'.format(schedule_frequency)
+    updated_job_config.find('.//spec').text = cron
+    root = updated_job_config.getroot()
+    xmlstr = ElementTree.tostring(root, encoding='utf8', method='xml')
+
+    return xmlstr
+
 
 
 def copy_job(service_name, src_name, dst_name, timeout_seconds=SHORT_TIMEOUT_SECONDS):
