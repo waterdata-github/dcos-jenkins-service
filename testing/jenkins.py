@@ -57,6 +57,17 @@ def construct_job_config(cmd, schedule_frequency_in_min, labelString):
     return xmlstr
 
 
+def create_job(service_name, job_name, cmd="echo \"Hello World\"; sleep 30",  schedule_frequency_in_min=1):   
+    here = os.path.dirname(__file__)
+    headers = {'Content-Type': 'application/xml'}  
+    job_config = ''
+    url = "{}createItem?name={}".format(DCOS_SERVICE_URL, job_name)  
+    job_config = construct_job_config(cmd, schedule_frequency_in_min)
+    
+    r = http.post(url, headers=headers, data=job_config)
+
+    return r
+
 
 def copy_job(service_name, src_name, dst_name, timeout_seconds=SHORT_TIMEOUT_SECONDS):
     path = 'createItem?name={}&mode=copy&from={}'.format(dst_name, src_name)
@@ -74,6 +85,16 @@ def enable_job(service_name, job_name, timeout_seconds=SHORT_TIMEOUT_SECONDS):
 
 def disable_job(service_name, job_name, timeout_seconds=SHORT_TIMEOUT_SECONDS):
     return _set_buildable(service_name, job_name, False, timeout_seconds)
+
+
+def delete_all_jobs(service_name, timeout_seconds=TIMEOUT_SECONDS):
+    for job in get_jobs(service_name, timeout_seconds=timeout_seconds):
+        delete_job(service_name, job['name'], timeout_seconds=timeout_seconds)
+
+
+def delete_job(service_name, job_name, timeout_seconds=TIMEOUT_SECONDS):
+    path = 'job/{}/doDelete'.format(job_name)
+    return sdk_cmd.service_request('POST', service_name, path, timeout_seconds=timeout_seconds)
 
 
 def _set_buildable(service_name, job_name, buildable, timeout_seconds=SHORT_TIMEOUT_SECONDS):
