@@ -14,8 +14,6 @@ SHORT_TIMEOUT_SECONDS = 30
 
 log = logging.getLogger(__name__)
 
-DCOS_SERVICE_URL = dcos_service_url('jenkins')
-
 
 def create_job(service_name, job_name, cmd="echo \"Hello World\"; sleep 30",  schedule_frequency_in_min=1):   
     here = os.path.dirname(__file__)
