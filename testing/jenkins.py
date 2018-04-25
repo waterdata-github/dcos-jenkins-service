@@ -19,8 +19,8 @@ def create_job(service_name, job_name, cmd="echo \"Hello World\"; sleep 30",  sc
     here = os.path.dirname(__file__)
     headers = {'Content-Type': 'application/xml'}  
     job_config = ''
-    dcos_service_url = dcos_service_url(service_name)
-    url = "{}createItem?name={}".format(dcos_service_url, job_name)  
+    dcos_url = dcos_service_url(service_name)
+    url = "{}createItem?name={}".format(dcos_url, job_name)  
     job_config = construct_job_config(cmd, schedule_frequency_in_min)
     
     r = http.post(url, headers=headers, data=job_config)
