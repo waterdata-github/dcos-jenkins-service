@@ -1,6 +1,7 @@
 import os
 import logging
 import sys
+import pytest
 
 log_level = os.getenv('TEST_LOG_LEVEL', 'INFO').upper()
 log_levels = ('DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL', 'EXCEPTION')
@@ -13,3 +14,27 @@ logging.basicConfig(
     format='[%(asctime)s|%(name)s|%(levelname)s]: %(message)s',
     level=log_level,
     stream=sys.stdout)
+
+
+def pytest_addoption(parser):
+    parser.addoption('--jobs', action='store', default=1,
+                     help='Number of test jobs to launch.')
+    parser.addoption('--single-use', action='store', default=True,
+                     help='Use Mesos Single-Use agents')
+    parser.addoption('--xmin', action='store', default=1,
+                     help='Run job every X minutes.')
+
+
+@pytest.fixture
+def job_count(request):
+    return request.config.getoption('--jobs')
+
+
+@pytest.fixture
+def single_use(request):
+    return request.config.getoption('--single-use')
+
+
+@pytest.fixture
+def xmin(request):
+    return request.config.getoption('--xmin')

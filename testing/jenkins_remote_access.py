@@ -83,6 +83,10 @@ cloud.getSlaveInfos().each {
 }
 """
 
+DELETE_ALL_JOBS = """
+Jenkins.instance.items.each { job -> job.delete() }
+"""
+
 
 def add_slave_info(
         labelString,
@@ -137,6 +141,10 @@ def remove_slave_info(labelString, service_name):
         ),
         service_name
     )
+
+
+def delete_all_jobs():
+    return make_post(DELETE_ALL_JOBS)
 
 
 def make_post(

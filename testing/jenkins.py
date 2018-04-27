@@ -62,9 +62,21 @@ def create_job(
     return r
 
 
+def create_seed_job(
+        service_name,
+        job_name,
+        content
+):
+    headers = {'Content-Type': 'application/xml'}
+    svc_url = dcos_service_url(service_name)
+    url = "{}createItem?name={}".format(svc_url, job_name)
+    r = http.post(url, headers=headers, data=content)
+
+    return r
+
+
 def construct_job_config(cmd, schedule_frequency_in_min, labelString):
-    here = os.path.dirname(__file__)
-    updated_job_config = ElementTree.parse(os.path.join(here, 'testData', 'test-job.xml'))
+    updated_job_config = _get_job_fixture('test-job.xml')
 
     cron = '*/{} * * * *'.format(schedule_frequency_in_min)
     updated_job_config.find('.//spec').text = cron
@@ -85,6 +97,12 @@ def copy_job(service_name, src_name, dst_name, timeout_seconds=SHORT_TIMEOUT_SEC
     # https://github.com/entagen/jenkins-build-per-branch/issues/41
     disable_job(service_name, dst_name)
     enable_job(service_name, dst_name)
+
+
+def run_job(service_name, job_name, timeout_seconds=SHORT_TIMEOUT_SECONDS, **kwargs):
+    params = '&'.join(["{}={}".format(i[0], i[1]) for i in kwargs.items()])
+    path = 'job/{}/buildWithParameters?{}'.format(job_name, params)
+    return sdk_cmd.service_request('POST', service_name, path, timeout_seconds=timeout_seconds)
 
 
 def enable_job(service_name, job_name, timeout_seconds=SHORT_TIMEOUT_SECONDS):
@@ -162,3 +180,10 @@ def _get_jenkins_json(service_name, path, timeout_seconds=SHORT_TIMEOUT_SECONDS)
 def _get_jenkins_json_path(service_name, path):
     return '{}/api/json'.format(path)
 
+
+def _get_job_fixture(job_name):
+    """Get the XML of the job fixture `job_name`. This should include
+    the file suffix.
+    """
+    here = os.path.dirname(__file__)
+    return ElementTree.parse(os.path.join(here, 'testData', job_name))
