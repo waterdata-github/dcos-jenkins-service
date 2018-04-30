@@ -104,7 +104,8 @@ def add_slave_info(
         slaveAttributes="",
         jvmArgs="-Xms16m -XX:+UseConcMarkSweepGC -Djava.net.preferIPv4Stack=true",
         jnlpArgs="-noReconnect",
-        defaultSlave="false"
+        defaultSlave="false",
+        **kwargs
 ):
     slaveInfo = Template(MESOS_SLAVE_INFO_OBJECT).substitute({
          "labelString": labelString,
