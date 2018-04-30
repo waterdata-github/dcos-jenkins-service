@@ -3,7 +3,6 @@ from xml.etree import ElementTree
 
 import config
 import jenkins
-import jenkins_remote_access
 import pytest
 import sdk_install
 import sdk_utils
@@ -32,18 +31,36 @@ def test_scaling_load(master_count,
         jenkins.install(jen_conf[0], jen_conf[1])
     # now try to launch jobs
     for jen_conf in masters:
-        launch_jobs(jen_conf[0], job_count, single_use, xmin)
+        service_name = jen_conf[0]
+
+        mesos_label = _create_random_label(service_name)
+        _launch_jobs(service_name, job_count, single_use, xmin, mesos_label)
 
 
 @pytest.mark.scalecleanup
 def test_cleanup_scale():
     log.info("Removing all jobs.")
-    jenkins_remote_access.delete_all_jobs()
+    jenkins.delete_all_jobs()
     log.info("Uninstalling {}.".format(config.SERVICE_NAME))
     sdk_install.uninstall(config.PACKAGE_NAME, config.SERVICE_NAME)
 
 
-def launch_jobs(service_name, job_count, single_use, xmin):
+def _create_random_label(service_name):
+    """Create a new Mesos Slave Info configuration with a random name.
+
+    Args:
+        service_name: Jenkins instance to add the label
+
+    Returns: Random name of the new config created.
+
+    """
+    mesos_label = "mesos{}".format(sdk_utils.random_string())
+    jenkins.create_mesos_slave_node(mesos_label,
+                                    service_name=service_name)
+    return mesos_label
+
+
+def _launch_jobs(service_name, job_count, single_use, xmin, agent_label):
     """Create configured number of jobs with given config on Jenkins
     instance identified by `service_name`.
 
@@ -55,10 +72,6 @@ def launch_jobs(service_name, job_count, single_use, xmin):
 
     """
     job_name = 'generator-job'
-
-    mesosLabel = "mesos{}".format(sdk_utils.random_string())
-    jenkins_remote_access.add_slave_info(mesosLabel,
-                                         service_name=service_name)
 
     single_use_str = '100'
     if not single_use or (
@@ -78,6 +91,6 @@ def launch_jobs(service_name, job_count, single_use, xmin):
     jenkins.run_job(service_name,
                     job_name,
                     **{'JOBCOUNT':    str(job_count),
-                       'AGENT_LABEL': mesosLabel,
+                       'AGENT_LABEL': agent_label,
                        'SINGLE_USE':  single_use_str,
                        'EVERY_XMIN':  str(xmin)})

@@ -40,7 +40,7 @@ def create_mesos_slave_node(
     # create the mesos slave node with given label. LABEL SHOULD NOT PRE-EXIST.
     return jenkins_remote_access.add_slave_info(
         labelString,
-        service_name,
+        service_name=service_name,
         **kwargs
     )
 
@@ -73,6 +73,18 @@ def create_seed_job(
     r = http.post(url, headers=headers, data=content)
 
     return r
+
+
+def delete_all_job(service_name):
+    """Delete all jobs on a Jenkins instance.
+
+    Args:
+        service_name: Jenkins instance
+
+    Returns: HTTP Response
+
+    """
+    return jenkins_remote_access.delete_all_jobs(service_name=service_name)
 
 
 def construct_job_config(cmd, schedule_frequency_in_min, labelString):
