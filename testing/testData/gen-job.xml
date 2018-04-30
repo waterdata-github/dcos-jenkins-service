@@ -13,6 +13,12 @@
                     <trim>true</trim>
                 </hudson.model.StringParameterDefinition>
                 <hudson.model.StringParameterDefinition>
+                    <name>AGENT_LABEL</name>
+                    <description>Job runs restricted to this label.</description>
+                    <defaultValue/>
+                    <trim>true</trim>
+                </hudson.model.StringParameterDefinition>
+                <hudson.model.StringParameterDefinition>
                     <name>JOBCOUNT</name>
                     <description>The number of jobs to create and manage.</description>
                     <defaultValue>5</defaultValue>
@@ -38,6 +44,7 @@
         <javaposse.jobdsl.plugin.ExecuteDslScripts plugin="job-dsl@1.69">
             <scriptText>def singleP = &quot;${SINGLE_USE}&quot; as Integer
                 def jobCount = &quot;${JOBCOUNT}&quot; as Integer
+                def agentLabel = "${AGENT_LABEL}" as String
                 def everyMin = &quot;${EVERY_XMIN}&quot; as Integer
 
                 Random random = new Random()
@@ -46,6 +53,10 @@
                 def jobName = &quot;test-job-${c}&quot;
 
                 def j = job(jobName) {
+                if (agentLabel) {
+                label(agentLabel)
+                }
+
                 triggers {
                 cron(&quot;*/${EVERY_XMIN} * * * *&quot;)
                 }
