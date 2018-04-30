@@ -55,7 +55,11 @@ def launch_jobs(service_name, job_count, single_use, xmin):
 
     """
     job_name = 'generator-job'
-    # create a new label here?
+
+    mesosLabel = "mesos{}".format(sdk_utils.random_string())
+    jenkins_remote_access.add_slave_info(mesosLabel,
+                                         service_name=service_name)
+
     single_use_str = '100'
     if not single_use or (
             type(single_use) == str and single_use.lower() == 'false'
@@ -73,6 +77,7 @@ def launch_jobs(service_name, job_count, single_use, xmin):
                 .format(job_count, xmin, single_use))
     jenkins.run_job(service_name,
                     job_name,
-                    **{'JOBCOUNT':   str(job_count),
-                       'SINGLE_USE': single_use_str,
-                       'EVERY_XMIN': str(xmin)})
+                    **{'JOBCOUNT':    str(job_count),
+                       'AGENT_LABEL': mesosLabel,
+                       'SINGLE_USE':  single_use_str,
+                       'EVERY_XMIN':  str(xmin)})
