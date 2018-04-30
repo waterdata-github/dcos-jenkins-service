@@ -143,8 +143,8 @@ def remove_slave_info(labelString, service_name):
     )
 
 
-def delete_all_jobs():
-    return make_post(DELETE_ALL_JOBS)
+def delete_all_jobs(**kwargs):
+    return make_post(DELETE_ALL_JOBS, **kwargs)
 
 
 def make_post(
