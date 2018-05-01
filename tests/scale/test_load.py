@@ -1,4 +1,24 @@
+"""
+A way to launch numerous Jenkins masters and jobs with pytest.
+
+From the CLI, this can be run as follows:
+    $ PYTEST_ARGS="--masters=3 --jobs=10" ./test.sh -m scale jenkins
+And to clean-up a test run of Jenkins instances:
+    $ ./test.sh -m scalecleanup jenkins
+
+This supports the following configuration params:
+    * Number of Jenkins masters (--masters)
+    * Number of jobs for each master (--jobs); this will be the same
+        count on each Jenkins instance. --jobs=10 will create 10 jobs
+        on each instance.
+    * How often, in minutes, to run a job (--xmin); this is used to
+        create a cron schedule: "*/xmin * * * *"
+    * To enable or disable "Mesos Single-Use Agent"; this is a toggle
+        and applies to all jobs equally.
+"""
+
 import logging
+import threading
 from xml.etree import ElementTree
 
 import config
@@ -19,6 +39,10 @@ def test_scaling_load(master_count,
     """Launch a load test scenario. This does not verify the results
     of the test, but does ensure the instances and jobs were created.
 
+    The installation is run in threads, but the job creation and
+    launch is then done serially after all Jenkins instances have
+    completed installation.
+
     Args:
         master_count: Number of Jenkins masters or instances
         job_count: Number of Jobs on each Jenkins master
@@ -28,33 +52,73 @@ def test_scaling_load(master_count,
     masters = [("jenkins{}".format(sdk_utils.random_string()), 50000 + i)
                for i in range(0, int(master_count))]
     # launch Jenkins services
+    install_threads = list()
     for jen_conf in masters:
-        jenkins.install(jen_conf[0], jen_conf[1])
+        t = threading.Thread(target=_install_jenkins,
+                             args=(jen_conf[0], jen_conf[1]))
+        install_threads.append(t)
+        t.start()
+    # wait on installation threads
+    for thread in install_threads:
+        thread.join()
     # now try to launch jobs
     for jen_conf in masters:
-        service_name = jen_conf[0]
-
-        mesos_label = _create_random_label(service_name)
-        _launch_jobs(service_name, job_count, single_use, xmin, mesos_label)
+        serv_name = jen_conf[0]
+        m_label = _create_random_label(serv_name)
+        _launch_jobs(serv_name, job_count, single_use, xmin, m_label)
 
 
 @pytest.mark.scalecleanup
 def test_cleanup_scale():
-    """Blanket clean-up of jenkins instances on a DC/OS cluster."""
+    """Blanket clean-up of jenkins instances on a DC/OS cluster.
+
+    1. Queries Marathon for all apps matching "jenkins" prefix
+    2. Delete all jobs on running Jenkins instances
+    3. Uninstall all found Jenkins installs
+    """
     r = sdk_marathon.filter_apps_by_id('jenkins')
     jenkins_apps = r.json()['apps']
     jenkins_ids = [x['id'] for x in jenkins_apps]
 
+    cleanup_threads = list()
     for service_id in jenkins_ids:
         if service_id.startswith('/'):
             service_id = service_id[1:]
         # skip over '/jenkins' instance - not setup by tests
         if service_id == 'jenkins':
             continue
-        log.info("Removing all jobs on {}.".format(service_id))
-        jenkins.delete_all_jobs(service_id, retry=False)
-        log.info("Uninstalling {}.".format(service_id))
-        sdk_install.uninstall(config.PACKAGE_NAME, service_id)
+        t = threading.Thread(target=_cleanup_jenkins_install,
+                             args=(service_id,))
+        cleanup_threads.append(t)
+        t.start()
+    # wait for cleanup to complete
+    for thread in cleanup_threads:
+        thread.join()
+
+
+def _install_jenkins(service_name, agent_port):
+    """Install Jenkins service.
+
+    Args:
+        service_name: Service Name or Marathon ID (same thing)
+        agent_port: Jenkins JNLP agent port
+    """
+    log.info("Installing jenkins '{}:{}'".format(service_name, agent_port))
+    jenkins.install(service_name, agent_port)
+
+
+def _cleanup_jenkins_install(service_name):
+    """Delete all jobs and uninstall Jenkins instance.
+
+    Args:
+        service_name: Service name or Marathon ID
+    """
+    if service_name.startswith('/'):
+        service_name = service_name[1:]
+    log.info("Removing all jobs on {}.".format(service_name))
+    jenkins.delete_all_jobs(service_name, retry=False)
+    log.info("Uninstalling {}.".format(service_name))
+    sdk_install.uninstall(config.PACKAGE_NAME, service_name)
 
 
 def _create_random_label(service_name):
