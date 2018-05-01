@@ -11,8 +11,8 @@ This supports the following configuration params:
     * Number of jobs for each master (--jobs); this will be the same
         count on each Jenkins instance. --jobs=10 will create 10 jobs
         on each instance.
-    * How often, in minutes, to run a job (--xmin); this is used to
-        create a cron schedule: "*/xmin * * * *"
+    * How often, in minutes, to run a job (--run-delay); this is used
+        to create a cron schedule: "*/run-delay * * * *"
     * To enable or disable "Mesos Single-Use Agent"; this is a toggle
         and applies to all jobs equally.
 """
@@ -35,7 +35,7 @@ log = logging.getLogger(__name__)
 def test_scaling_load(master_count,
                       job_count,
                       single_use,
-                      xmin):
+                      run_delay):
     """Launch a load test scenario. This does not verify the results
     of the test, but does ensure the instances and jobs were created.
 
@@ -47,7 +47,7 @@ def test_scaling_load(master_count,
         master_count: Number of Jenkins masters or instances
         job_count: Number of Jobs on each Jenkins master
         single_use: Mesos Single-Use Agent on (true) or off (false)
-        xmin: Jobs should run every X minute(s)
+        run_delay: Jobs should run every X minute(s)
     """
     masters = ["jenkins{}".format(sdk_utils.random_string()) for _ in
                range(0, int(master_count))]
@@ -64,7 +64,7 @@ def test_scaling_load(master_count,
     # now try to launch jobs
     for service_name in masters:
         m_label = _create_random_label(service_name)
-        _launch_jobs(service_name, job_count, single_use, xmin, m_label)
+        _launch_jobs(service_name, job_count, single_use, run_delay, m_label)
 
 
 @pytest.mark.scalecleanup
@@ -134,7 +134,7 @@ def _create_random_label(service_name):
     return mesos_label
 
 
-def _launch_jobs(service_name, job_count, single_use, xmin, agent_label):
+def _launch_jobs(service_name, job_count, single_use, run_delay, agent_label):
     """Create configured number of jobs with given config on Jenkins
     instance identified by `service_name`.
 
@@ -142,7 +142,7 @@ def _launch_jobs(service_name, job_count, single_use, xmin, agent_label):
         service_name: Jenkins service name
         job_count: Number of jobs to create and run
         single_use: Single Use Mesos agent on (true) or off
-        xmin: A job should run every X minute(s)
+        run_delay: A job should run every X minute(s)
 
     """
     job_name = 'generator-job'
@@ -161,10 +161,10 @@ def _launch_jobs(service_name, job_count, single_use, xmin, agent_label):
     jenkins.create_seed_job(service_name, job_name, seed_config_str)
     log.info(
             "Launching {} jobs every {} minutes with single-use ({})."
-            .format(job_count, xmin, single_use))
+            .format(job_count, run_delay, single_use))
     jenkins.run_job(service_name,
                     job_name,
                     **{'JOBCOUNT':    str(job_count),
                        'AGENT_LABEL': agent_label,
                        'SINGLE_USE':  single_use_str,
-                       'EVERY_XMIN':  str(xmin)})
+                       'EVERY_XMIN':  str(run_delay)})

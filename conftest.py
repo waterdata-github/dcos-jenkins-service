@@ -24,25 +24,25 @@ def pytest_addoption(parser):
                      help='Number of test jobs to launch.')
     parser.addoption('--single-use', action='store', default=True,
                      help='Use Mesos Single-Use agents')
-    parser.addoption('--xmin', action='store', default=1,
+    parser.addoption('--run-delay', action='store', default=1,
                      help='Run job every X minutes.')
 
 
 @pytest.fixture
-def master_count(request):
-    return request.config.getoption('--masters')
+def master_count(request) -> int:
+    return int(request.config.getoption('--masters'))
 
 
 @pytest.fixture
-def job_count(request):
-    return request.config.getoption('--jobs')
+def job_count(request) -> int:
+    return int(request.config.getoption('--jobs'))
 
 
 @pytest.fixture
-def single_use(request):
+def single_use(request) -> int:
     return request.config.getoption('--single-use')
 
 
 @pytest.fixture
-def xmin(request):
-    return request.config.getoption('--xmin')
+def run_delay(request) -> int:
+    return int(request.config.getoption('--run-delay'))
