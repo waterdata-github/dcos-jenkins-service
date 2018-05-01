@@ -75,7 +75,7 @@ def create_seed_job(
     return r
 
 
-def delete_all_job(service_name):
+def delete_all_jobs(service_name):
     """Delete all jobs on a Jenkins instance.
 
     Args:

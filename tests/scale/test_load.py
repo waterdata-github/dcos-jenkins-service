@@ -39,8 +39,9 @@ def test_scaling_load(master_count,
 
 @pytest.mark.scalecleanup
 def test_cleanup_scale():
+    # TODO: query Marathon for running Jenkins instances
     log.info("Removing all jobs.")
-    jenkins.delete_all_jobs()
+    jenkins.delete_all_jobs('jenkins')
     log.info("Uninstalling {}.".format(config.SERVICE_NAME))
     sdk_install.uninstall(config.PACKAGE_NAME, config.SERVICE_NAME)
 
