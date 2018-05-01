@@ -89,6 +89,16 @@ def get_config(app_name, timeout=TIMEOUT_SECONDS):
 
 
 def filter_apps_by_id(filter_id):
+    """Return all Marathon apps with an ID matching `filter_id`.
+
+    "jenkins" will return all Marathon apps that begin with "jenkins".
+
+    Args:
+        filter_id: String to filter Marathon app IDs
+
+    Returns: Marathon response
+
+    """
     return sdk_cmd.cluster_request('GET',
                                    _api_url('apps/?id={}'.format(filter_id)),
                                    retry=False)
