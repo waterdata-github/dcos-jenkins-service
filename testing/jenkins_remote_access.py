@@ -21,7 +21,7 @@ def containerInfo = new MesosSlaveInfo.ContainerInfo(
                 "DOCKER",
                 "mesosphere/jenkins-dind:0.7.0-ubuntu",
                 true,
-                true,
+                false,
                 false,
                 true,
                 "wrapper.sh",
