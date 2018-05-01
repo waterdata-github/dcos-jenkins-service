@@ -15,7 +15,13 @@ SHORT_TIMEOUT_SECONDS = 30
 log = logging.getLogger(__name__)
 
 
-def install(service_name, port):
+def install(service_name):
+    """Install a Jenkins instance and set the service name to
+    `service_name`. This does not wait for deployment to finish.
+
+    Args:
+        service_name: Unique service name
+    """
     sdk_install.install(
         'jenkins',
         service_name,
@@ -23,9 +29,6 @@ def install(service_name, port):
         additional_options={
             "service": {
                 "name": service_name
-            },
-            "networking": {
-                "agent-port": port
             }
         },
         wait_for_deployment=False)

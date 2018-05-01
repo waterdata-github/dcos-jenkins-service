@@ -49,23 +49,22 @@ def test_scaling_load(master_count,
         single_use: Mesos Single-Use Agent on (true) or off (false)
         xmin: Jobs should run every X minute(s)
     """
-    masters = [("jenkins{}".format(sdk_utils.random_string()), 50000 + i)
-               for i in range(0, int(master_count))]
+    masters = ["jenkins{}".format(sdk_utils.random_string()) for _ in
+               range(0, int(master_count))]
     # launch Jenkins services
     install_threads = list()
-    for jen_conf in masters:
+    for service_name in masters:
         t = threading.Thread(target=_install_jenkins,
-                             args=(jen_conf[0], jen_conf[1]))
+                             args=(service_name,))
         install_threads.append(t)
         t.start()
     # wait on installation threads
     for thread in install_threads:
         thread.join()
     # now try to launch jobs
-    for jen_conf in masters:
-        serv_name = jen_conf[0]
-        m_label = _create_random_label(serv_name)
-        _launch_jobs(serv_name, job_count, single_use, xmin, m_label)
+    for service_name in masters:
+        m_label = _create_random_label(service_name)
+        _launch_jobs(service_name, job_count, single_use, xmin, m_label)
 
 
 @pytest.mark.scalecleanup
@@ -96,15 +95,14 @@ def test_cleanup_scale():
         thread.join()
 
 
-def _install_jenkins(service_name, agent_port):
+def _install_jenkins(service_name):
     """Install Jenkins service.
 
     Args:
         service_name: Service Name or Marathon ID (same thing)
-        agent_port: Jenkins JNLP agent port
     """
-    log.info("Installing jenkins '{}:{}'".format(service_name, agent_port))
-    jenkins.install(service_name, agent_port)
+    log.info("Installing jenkins '{}'".format(service_name))
+    jenkins.install(service_name)
 
 
 def _cleanup_jenkins_install(service_name):
@@ -162,8 +160,8 @@ def _launch_jobs(service_name, job_count, single_use, xmin, agent_label):
             method='xml')
     jenkins.create_seed_job(service_name, job_name, seed_config_str)
     log.info(
-            "Launching {} jobs every {} minutes with single-use set to: {}."
-                .format(job_count, xmin, single_use))
+            "Launching {} jobs every {} minutes with single-use ({})."
+            .format(job_count, xmin, single_use))
     jenkins.run_job(service_name,
                     job_name,
                     **{'JOBCOUNT':    str(job_count),
