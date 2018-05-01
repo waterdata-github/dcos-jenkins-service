@@ -21,6 +21,7 @@ def containerInfo = new MesosSlaveInfo.ContainerInfo(
                 "DOCKER",
                 "mesosphere/jenkins-dind:0.7.0-ubuntu",
                 true,
+                true,
                 false,
                 true,
                 "wrapper.sh",
@@ -128,7 +129,8 @@ def add_slave_info(
         DOCKER_CONTAINER +
         slaveInfo +
         MESOS_SLAVE_INFO_ADD,
-        service_name
+        service_name,
+        **kwargs,
     )
 
 
@@ -149,7 +151,8 @@ def delete_all_jobs(**kwargs):
 
 def make_post(
         post_body,
-        service_name
+        service_name,
+        **kwargs
 ):
     """
     :rtype: requests.Response
@@ -169,4 +172,5 @@ def make_post(
         'scriptText',
         log_args=False,
         data={'script': body},
+        **kwargs,
     )
