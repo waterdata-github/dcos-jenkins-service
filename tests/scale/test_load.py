@@ -5,6 +5,7 @@ import config
 import jenkins
 import pytest
 import sdk_install
+import sdk_marathon
 import sdk_utils
 
 log = logging.getLogger(__name__)
@@ -39,11 +40,21 @@ def test_scaling_load(master_count,
 
 @pytest.mark.scalecleanup
 def test_cleanup_scale():
-    # TODO: query Marathon for running Jenkins instances
-    log.info("Removing all jobs.")
-    jenkins.delete_all_jobs('jenkins')
-    log.info("Uninstalling {}.".format(config.SERVICE_NAME))
-    sdk_install.uninstall(config.PACKAGE_NAME, config.SERVICE_NAME)
+    """Blanket clean-up of jenkins instances on a DC/OS cluster."""
+    r = sdk_marathon.filter_apps_by_id('jenkins')
+    jenkins_apps = r.json()['apps']
+    jenkins_ids = [x['id'] for x in jenkins_apps]
+
+    for service_id in jenkins_ids:
+        if service_id.startswith('/'):
+            service_id = service_id[1:]
+        # skip over '/jenkins' instance - not setup by tests
+        if service_id == 'jenkins':
+            continue
+        log.info("Removing all jobs on {}.".format(service_id))
+        jenkins.delete_all_jobs(service_id, retry=False)
+        log.info("Uninstalling {}.".format(service_id))
+        sdk_install.uninstall(config.PACKAGE_NAME, service_id)
 
 
 def _create_random_label(service_name):
