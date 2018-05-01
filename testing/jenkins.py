@@ -75,16 +75,19 @@ def create_seed_job(
     return r
 
 
-def delete_all_jobs(service_name):
+def delete_all_jobs(service_name, retry=True):
     """Delete all jobs on a Jenkins instance.
 
     Args:
         service_name: Jenkins instance
+        retry: Retry this request
 
     Returns: HTTP Response
 
     """
-    return jenkins_remote_access.delete_all_jobs(service_name=service_name)
+    return jenkins_remote_access.delete_all_jobs(
+            service_name=service_name,
+            retry=retry)
 
 
 def construct_job_config(cmd, schedule_frequency_in_min, labelString):
@@ -123,16 +126,6 @@ def enable_job(service_name, job_name, timeout_seconds=SHORT_TIMEOUT_SECONDS):
 
 def disable_job(service_name, job_name, timeout_seconds=SHORT_TIMEOUT_SECONDS):
     return _set_buildable(service_name, job_name, False, timeout_seconds)
-
-
-def delete_all_jobs(service_name, timeout_seconds=TIMEOUT_SECONDS):
-    for job in get_jobs(service_name, timeout_seconds=timeout_seconds):
-        delete_job(service_name, job['name'], timeout_seconds=timeout_seconds)
-
-
-def delete_job(service_name, job_name, timeout_seconds=TIMEOUT_SECONDS):
-    path = 'job/{}/doDelete'.format(job_name)
-    return sdk_cmd.service_request('POST', service_name, path, timeout_seconds=timeout_seconds)
 
 
 def _set_buildable(service_name, job_name, buildable, timeout_seconds=SHORT_TIMEOUT_SECONDS):
