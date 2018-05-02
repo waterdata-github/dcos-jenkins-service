@@ -90,9 +90,9 @@ Jenkins.instance.items.each { job -> job.delete() }
 """
 
 JENKINS_JOB_FAILURES = """
-activeJobs = hudson.model.Hudson.instance.items.findAll{job -> !(job instanceof Folder) && job.isBuildable()}
+def activeJobs = hudson.model.Hudson.instance.items.findAll{job -> !(job instanceof Folder) && job.isBuildable()}
 println("successjobs = " +activeJobs.size())
-failedRuns = activeJobs.findAll{job -> job.lastBuild != null && !(job.lastBuild.isBuilding()) && job.lastBuild.result == hudson.model.Result.FAILURE}
+def failedRuns = activeJobs.findAll{job -> job.lastBuild != null && !(job.lastBuild.isBuilding()) && job.lastBuild.result == hudson.model.Result.FAILURE}
 println("failedjobs = " +failedRuns.size())
 BUILD_STRING = "Build step 'Execute shell' marked build as failure"
 
@@ -105,8 +105,6 @@ failedRuns.each{ item ->
     }
 }
 """
-
-
 
 def add_slave_info(
         labelString,
