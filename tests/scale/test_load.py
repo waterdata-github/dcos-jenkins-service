@@ -27,8 +27,12 @@ import pytest
 import sdk_install
 import sdk_marathon
 import sdk_utils
+import sdk_quota
 
 log = logging.getLogger(__name__)
+
+
+SHARED_ROLE = "jenkins-role"
 
 
 @pytest.mark.scale
@@ -49,6 +53,8 @@ def test_scaling_load(master_count,
         single_use: Mesos Single-Use Agent on (true) or off (false)
         run_delay: Jobs should run every X minute(s)
     """
+    _setup_quota(SHARED_ROLE)
+
     masters = ["jenkins{}".format(sdk_utils.random_string()) for _ in
                range(0, int(master_count))]
     # launch Jenkins services
@@ -95,6 +101,26 @@ def test_cleanup_scale():
         thread.join()
 
 
+def _setup_quota(role):
+    current_quotas = sdk_quota.list_quotas()
+    if "infos" not in current_quotas:
+        _set_quota(role)
+
+    match = False
+    for quota in current_quotas["infos"]:
+        if quota["role"] == role:
+            match = True
+            break
+
+    if match:
+        sdk_quota.remove_quota(role)
+    _set_quota(role)
+
+
+def _set_quota(role):
+    sdk_quota.create_quota(role, cpus=1370.0)
+
+
 def _install_jenkins(service_name):
     """Install Jenkins service.
 
@@ -102,7 +128,7 @@ def _install_jenkins(service_name):
         service_name: Service Name or Marathon ID (same thing)
     """
     log.info("Installing jenkins '{}'".format(service_name))
-    jenkins.install(service_name)
+    jenkins.install(service_name, role=SHARED_ROLE)
 
 
 def _cleanup_jenkins_install(service_name):
