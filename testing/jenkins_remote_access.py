@@ -97,7 +97,7 @@ def add_slave_info(
         maxExecutors="1",
         executorCpus="0.4",
         diskNeeded="0.0",
-        executorMem="4096",
+        executorMem="512",
         mode="Node.Mode.NORMAL",
         remoteFSRoot="jenkins",
         idleTerminationMinutes="5",
