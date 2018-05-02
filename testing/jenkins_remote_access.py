@@ -97,7 +97,6 @@ println("failedjobs = " +failedRuns.size())
 BUILD_STRING = "Build step 'Execute shell' marked build as failure"
 
 failedRuns.each{ item -> 
-    println("=====================================================================") 
     println "Failed Job Name: ${item.name}"
     item.lastBuild.getLog().eachLine { line ->
         if (line =~ /$BUILD_STRING/) {
@@ -105,8 +104,6 @@ failedRuns.each{ item ->
         }
     }
 }
-
-println("=====================================================================")
 """
 
 
