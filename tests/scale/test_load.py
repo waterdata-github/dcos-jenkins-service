@@ -37,6 +37,7 @@ import shakedown
 log = logging.getLogger(__name__)
 
 SHARED_ROLE = "jenkins-role"
+DOCKER_IMAGE="benclarkwood/dind:2"
 
 
 @pytest.mark.scale
@@ -177,6 +178,7 @@ def _create_executor_configuration(service_name):
     mesos_label = "mesos"
     jenkins.create_mesos_slave_node(mesos_label,
                                     service_name=service_name,
+                                    dockerImage=DOCKER_IMAGE,
                                     executorCpus=0.1,
                                     executorMem=1024,
                                     idleTerminationMinutes=1)

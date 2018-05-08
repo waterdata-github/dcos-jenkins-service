@@ -21,7 +21,7 @@ import com.cloudbees.hudson.plugins.folder.Folder;
 DOCKER_CONTAINER = """
 def containerInfo = new MesosSlaveInfo.ContainerInfo(
                 "DOCKER",
-                "mesosphere/jenkins-dind:0.7.0-ubuntu",
+                "$dockerImage",
                 true,
                 false,
                 false,
@@ -96,7 +96,7 @@ def failedRuns = activeJobs.findAll{job -> job.lastBuild != null && !(job.lastBu
 println("failedjobs = " +failedRuns.size())
 BUILD_STRING = "Build step 'Execute shell' marked build as failure"
 
-failedRuns.each{ item -> 
+failedRuns.each{ item ->
     println "Failed Job Name: ${item.name}"
     item.lastBuild.getLog().eachLine { line ->
         if (line =~ /$BUILD_STRING/) {
@@ -109,6 +109,7 @@ failedRuns.each{ item ->
 def add_slave_info(
         labelString,
         service_name,
+        dockerImage="mesosphere/jenkins-dind:0.7.0-ubuntu",
         slaveCpus="0.1",
         slaveMem="256",
         minExecutors="1",
@@ -143,8 +144,13 @@ def add_slave_info(
          "defaultSlave": defaultSlave,
          "containerInfo": "containerInfo",
     })
+
+    containerInfo = Template(DOCKER_CONTAINER).substitute({
+        "dockerImage": dockerImage,
+    })
+
     return make_post(
-        DOCKER_CONTAINER +
+        containerInfo +
         slaveInfo +
         MESOS_SLAVE_INFO_ADD,
         service_name,
