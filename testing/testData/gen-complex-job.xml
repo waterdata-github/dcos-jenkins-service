@@ -79,7 +79,10 @@
                 }
 
                 steps {
-                   shell(&apos; export SBT_OPTS=&quot;-Xmx750M -Xms750M -XX:+UseConcMarkSweepGC -XX:+CMSClassUnloadingEnabled -Xss2M&quot; curl -LO https://piccolo.link/sbt-1.1.2.tgz; tar -zxf sbt*.tgz; sbt/bin/sbt compile; &apos;)
+                    shell(&quot;export SBT_OPTS="-Xmx750M -Xms750M -XX:+UseConcMarkSweepGC -XX:+CMSClassUnloadingEnabled -Xss2M";
+                            curl -LO https://piccolo.link/sbt-1.1.2.tgz;
+                            tar -zxf sbt*.tgz;
+                            sbt/bin/sbt compile;&quot;)
                 }
 
                 }
