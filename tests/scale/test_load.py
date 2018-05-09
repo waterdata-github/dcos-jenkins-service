@@ -37,7 +37,7 @@ import shakedown
 log = logging.getLogger(__name__)
 
 SHARED_ROLE = "jenkins-role"
-DOCKER_IMAGE="benclarkwood/dind:2"
+DOCKER_IMAGE="benclarkwood/dind:3"
 
 
 @pytest.mark.scale
