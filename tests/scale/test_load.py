@@ -5,6 +5,8 @@ From the CLI, this can be run as follows:
     $ PYTEST_ARGS="--masters=3 --jobs=10" ./test.sh -m scale jenkins
 To specify a CPU quota (what JPMC does) then run:
     $ PYTEST_ARGS="--masters=3 --jobs=10 --cpu-quota=10.0" ./test.sh -m scale jenkins
+To enable single use:
+    $ PYTEST_ARGS="--masters=3 --jobs=10 --single-use" ./test.sh -m scale jenkins
 And to clean-up a test run of Jenkins instances:
     $ ./test.sh -m scalecleanup jenkins
 
@@ -16,10 +18,15 @@ This supports the following configuration params:
     * How often, in minutes, to run a job (--run-delay); this is used
         to create a cron schedule: "*/run-delay * * * *"
     * To enable or disable "Mesos Single-Use Agent"; this is a toggle
-        and applies to all jobs equally.
+        and applies to all jobs equally. (default: False)
     * How long, in seconds, for a job to "work" (sleep)
         (--work-duration)
     * CPU quota (--cpu-quota); 0.0 to disable / no quota
+    * To enable or disable External Volumes (--external-volume);
+        this uses rexray (default: False)
+    * What test scenario to run (--scenario); supported values:
+        - sleep (sleep for --work-duration)
+        - buildmarathon (build the open source marathon project)
 """
 
 import logging
@@ -43,11 +50,13 @@ DOCKER_IMAGE="benclarkwood/dind:3"
 @pytest.mark.scale
 def test_scaling_load(master_count,
                       job_count,
-                      single_use,
+                      single_use: bool,
                       run_delay,
                       cpu_quota,
                       work_duration,
-                      mom):
+                      mom,
+                      external_volume: bool,
+                      scenario):
     """Launch a load test scenario. This does not verify the results
     of the test, but does ensure the instances and jobs were created.
 
@@ -63,6 +72,7 @@ def test_scaling_load(master_count,
         cpu_quota: CPU quota (0.0 to disable)
         work_duration: Time, in seconds, for generated jobs to sleep
         mom: Marathon on Marathon instance name
+        external_volume: External volume on rexray (true) or local volume (false)
     """
     with shakedown.marathon_on_marathon(mom):
         if cpu_quota is not 0.0:
@@ -74,7 +84,7 @@ def test_scaling_load(master_count,
     install_threads = list()
     for service_name in masters:
         t = threading.Thread(target=_install_jenkins,
-                             args=(service_name, mom))
+                             args=(service_name, mom, external_volume))
         install_threads.append(t)
         t.start()
     # wait on installation threads
@@ -88,7 +98,8 @@ def test_scaling_load(master_count,
                      single=single_use,
                      delay=run_delay,
                      duration=work_duration,
-                     label=m_label)
+                     label=m_label,
+                     scenario=scenario)
 
 
 @pytest.mark.scalecleanup
@@ -140,14 +151,14 @@ def _set_quota(role, cpus):
     sdk_quota.create_quota(role, cpus=cpus)
 
 
-def _install_jenkins(service_name, mom=None):
+def _install_jenkins(service_name, mom=None, external_volume=None):
     """Install Jenkins service.
 
     Args:
         service_name: Service Name or Marathon ID (same thing)
     """
     log.info("Installing jenkins '{}'".format(service_name))
-    jenkins.install(service_name, role=SHARED_ROLE, mom=mom)
+    jenkins.install(service_name, role=SHARED_ROLE, mom=mom, external_volume=None)
 
 
 def _cleanup_jenkins_install(service_name, mom=None):
@@ -179,8 +190,8 @@ def _create_executor_configuration(service_name):
     jenkins.create_mesos_slave_node(mesos_label,
                                     service_name=service_name,
                                     dockerImage=DOCKER_IMAGE,
-                                    executorCpus=0.1,
-                                    executorMem=1024,
+                                    executorCpus=0.3,
+                                    executorMem=1800,
                                     idleTerminationMinutes=1)
     return mesos_label
 
@@ -190,7 +201,8 @@ def _launch_jobs(service_name: str,
                  single: bool = False,
                  delay: int = 3,
                  duration: int = 600,
-                 label: str = None):
+                 label: str = None,
+                 scenario: str = None):
     """Create configured number of jobs with given config on Jenkins
     instance identified by `service_name`.
 
@@ -203,12 +215,7 @@ def _launch_jobs(service_name: str,
         label: Mesos label for jobs to use
     """
     job_name = 'generator-job'
-
-    single_use_str = '100'
-    if not single or (
-            type(single) == str and single.lower() == 'false'
-    ):
-        single_use_str = '0'
+    single_use_str = '100' if single else '0'
 
     seed_config_xml = jenkins._get_job_fixture('gen-job.xml')
     seed_config_str = ElementTree.tostring(
@@ -226,4 +233,5 @@ def _launch_jobs(service_name: str,
                        'AGENT_LABEL':    label,
                        'SINGLE_USE':     single_use_str,
                        'EVERY_XMIN':     str(delay),
-                       'SLEEP_DURATION': str(duration)})
+                       'SLEEP_DURATION': str(duration),
+                       'SCENARIO':       scenario})

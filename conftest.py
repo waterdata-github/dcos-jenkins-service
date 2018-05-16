@@ -18,21 +18,28 @@ logging.basicConfig(
 
 
 def pytest_addoption(parser):
-    parser.addoption('--masters', action='store', default=1,
+    parser.addoption('--masters', action='store', default=1, type=int,
                      help='Number of Jenkins masters to launch.')
-    parser.addoption('--jobs', action='store', default=1,
+    parser.addoption('--jobs', action='store', default=1, type=int,
                      help='Number of test jobs to launch.')
-    parser.addoption('--single-use', action='store', default=True,
-                     help='Use Mesos Single-Use agents')
+    parser.addoption('--single-use', action='store', default=False,
+                     type=bool, help='Use Mesos Single-Use agents')
     parser.addoption('--run-delay', action='store', default=1,
-                     help='Run job every X minutes.')
+                     type=int, help='Run job every X minutes.')
     parser.addoption('--cpu-quota', action='store', default=0.0,
+                     type=float,
                      help='CPU quota to set. 0.0 to set no quota.')
     parser.addoption('--work-duration', action='store', default=600,
+                     type=int,
                      help='Duration, in seconds, for the workload to '
                           'last (sleep).')
     parser.addoption('--mom', action='store', default='',
                      help='Marathon on Marathon instance name.')
+    parser.addoption('--external-volume', action='store', default=False,
+                     type=bool, help='Use rexray external volumes.')
+    parser.addoption('--scenario', action='store', default='sleep',
+                     help='Test scenario to run (sleep, buildmarathon) '
+                          '(default: sleep).')
 
 
 @pytest.fixture
@@ -46,7 +53,7 @@ def job_count(request) -> int:
 
 
 @pytest.fixture
-def single_use(request) -> int:
+def single_use(request) -> bool:
     return request.config.getoption('--single-use')
 
 
@@ -64,6 +71,17 @@ def cpu_quota(request) -> float:
 def work_duration(request) -> int:
     return int(request.config.getoption('--work-duration'))
 
+
 @pytest.fixture
 def mom(request) -> str:
     return request.config.getoption('--mom')
+
+
+@pytest.fixture
+def scenario(request) -> str:
+    return request.config.getoption('--scenario')
+
+
+@pytest.fixture
+def external_volume(request) -> bool:
+    return request.config.getoption('--external-volume')
