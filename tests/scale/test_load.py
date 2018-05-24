@@ -75,7 +75,7 @@ def test_scaling_load(master_count,
         external_volume: External volume on rexray (true) or local volume (false)
     """
     with shakedown.marathon_on_marathon(mom):
-        if cpu_quota is not 0.0:
+        if cpu_quota != 0.0:
             _setup_quota(SHARED_ROLE, cpu_quota)
 
     masters = ["jenkins{}".format(sdk_utils.random_string()) for _ in
