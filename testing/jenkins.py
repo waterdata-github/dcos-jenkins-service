@@ -60,6 +60,13 @@ def install(service_name, role=None, mom=None, external_volume=None,
         # this will register at `/service/<service_name>`
         pkg_json = sdk_install.get_package_json('jenkins', None, options)
         with marathon_on_marathon(mom):
+            if 'portDefinitions' in pkg_json:
+                p0 = pkg_json['portDefinitions'][0]
+                p0['labels'] = {
+                    'VIP_0': "{}.{}.l4lb.thisdcos.directory:10000"
+                             .format(service_name, mom)
+                }
+
             c = marathon.create_client()
             c.add_app(pkg_json)
             time_wait(lambda: deployment_predicate(service_name),
@@ -74,8 +81,13 @@ def install(service_name, role=None, mom=None, external_volume=None,
             wait_for_deployment=False)
 
     if strict_settings:
+        if mom:
+            vip = "https://{}.{}.l4lb.thisdcos.directory:10000"\
+                .format(service_name, mom)
+        else:
+            vip = None
         jenkins_remote_access.change_mesos_creds(
-            strict_settings['mesos_principal'], service_name)
+            strict_settings['mesos_principal'], service_name, vip=vip)
 
 
 def uninstall(service_name, package_name='jenkins', role=None, mom=None):
@@ -117,10 +129,14 @@ def create_job(
         job_name,
         cmd="echo \"Hello World\"; sleep 30",
         schedule_frequency_in_min=1,
-        labelString=None
+        labelString=None,
+        vip=None
 ):
     headers = {'Content-Type': 'application/xml'}
-    svc_url = dcos_service_url(service_name)
+    if vip:
+        svc_url = "https://{}/service/{}/".format(vip, service_name)
+    else:
+        svc_url = dcos_service_url(service_name)
     url = "{}createItem?name={}".format(svc_url, job_name)
     job_config = construct_job_config(cmd, schedule_frequency_in_min, labelString)
 
@@ -132,10 +148,14 @@ def create_job(
 def create_seed_job(
         service_name,
         job_name,
-        content
+        content,
+        vip=None
 ):
     headers = {'Content-Type': 'application/xml'}
-    svc_url = dcos_service_url(service_name)
+    if vip:
+        svc_url = "https://{}/service/{}/".format(vip, service_name)
+    else:
+        svc_url = dcos_service_url(service_name)
     url = "{}createItem?name={}".format(svc_url, job_name)
     r = http.post(url, headers=headers, data=content)
 
@@ -181,10 +201,11 @@ def copy_job(service_name, src_name, dst_name, timeout_seconds=SHORT_TIMEOUT_SEC
     enable_job(service_name, dst_name)
 
 
-def run_job(service_name, job_name, timeout_seconds=SHORT_TIMEOUT_SECONDS, **kwargs):
+def run_job(service_name, job_name, vip=None, timeout_seconds=SHORT_TIMEOUT_SECONDS, **kwargs):
     params = '&'.join(["{}={}".format(i[0], i[1]) for i in kwargs.items()])
     path = 'job/{}/buildWithParameters?{}'.format(job_name, params)
-    return sdk_cmd.service_request('POST', service_name, path, timeout_seconds=timeout_seconds)
+    return sdk_cmd.service_request('POST', service_name, path, timeout_seconds=timeout_seconds,
+                                   vip=vip)
 
 
 def enable_job(service_name, job_name, timeout_seconds=SHORT_TIMEOUT_SECONDS):

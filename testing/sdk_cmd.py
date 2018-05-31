@@ -52,6 +52,7 @@ def cluster_request(
         log_args=True,
         verify=None,
         timeout_seconds=60,
+        vip=None,
         **kwargs):
     """Queries the provided cluster HTTP path using the provided method, with the following handy features:
     - The DCOS cluster's URL is automatically applied to the provided path.
@@ -69,8 +70,10 @@ def cluster_request(
                    or `params={"example": "param"}`.
     :rtype: requests.Response
     """
-
-    url = shakedown.dcos_url_path(cluster_path)
+    if vip:
+        url = "{}{}".format(vip, cluster_path)
+    else:
+        url = shakedown.dcos_url_path(cluster_path)
     cluster_path = '/' + cluster_path.lstrip('/')  # consistently include slash prefix for clearer logging below
     log.info('(HTTP {}) {}'.format(method.upper(), cluster_path))
 

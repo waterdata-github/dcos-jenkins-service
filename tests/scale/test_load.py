@@ -136,7 +136,8 @@ def test_scaling_load(master_count,
                                  single=single_use,
                                  delay=run_delay,
                                  duration=work_duration,
-                                 scenario=scenario)
+                                 scenario=scenario,
+                                 mom=mom)
     _wait_on_threads(job_threads, JOB_RUN_TIMEOUT)
 
 
@@ -277,11 +278,14 @@ def _create_jobs(service_name, **kwargs):
     Args:
         service_name: Jenkins instance name
     """
-    m_label = _create_executor_configuration(service_name)
+    if 'mom' in kwargs:
+        kwargs['vip'] = "https://{}.{}.l4lb.thisdcos.directory:10000"\
+            .format(service_name, kwargs['mom'])
+    m_label = _create_executor_configuration(service_name, **kwargs)
     _launch_jobs(service_name, label=m_label, **kwargs)
 
 
-def _create_executor_configuration(service_name: str) -> str:
+def _create_executor_configuration(service_name: str, **kwargs) -> str:
     """Create a new Mesos Slave Info configuration with a random name.
 
     Args:
@@ -296,7 +300,8 @@ def _create_executor_configuration(service_name: str) -> str:
                                     dockerImage=DOCKER_IMAGE,
                                     executorCpus=0.3,
                                     executorMem=1800,
-                                    idleTerminationMinutes=1)
+                                    idleTerminationMinutes=1,
+                                    **kwargs)
     return mesos_label
 
 
@@ -306,7 +311,8 @@ def _launch_jobs(service_name: str,
                  delay: int = 3,
                  duration: int = 600,
                  label: str = None,
-                 scenario: str = None):
+                 scenario: str = None,
+                 vip: str = None):
     """Create configured number of jobs with given config on Jenkins
     instance identified by `service_name`.
 
@@ -333,12 +339,13 @@ def _launch_jobs(service_name: str,
 
     jenkins.run_job(service_name,
                     job_name,
+                    vip=vip,
                     **{'JOBCOUNT':       str(jobs),
                        'AGENT_LABEL':    label,
                        'SINGLE_USE':     single_use_str,
                        'EVERY_XMIN':     str(delay),
                        'SLEEP_DURATION': str(duration),
-                       'SCENARIO':       scenario})
+                       'SCENARIO':       scenario},)
 
 
 def _wait_on_threads(thread_list: List[Thread],

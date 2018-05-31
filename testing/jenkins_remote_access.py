@@ -193,14 +193,15 @@ def add_slave_info(
     )
 
 
-def remove_slave_info(labelString, service_name):
+def remove_slave_info(labelString, service_name, **kwargs):
     return make_post(
         Template(MESOS_SLAVE_INFO_REMOVE).substitute(
             {
                 'labelString': labelString
             }
         ),
-        service_name
+        service_name,
+        **kwargs
     )
 
 
@@ -208,18 +209,19 @@ def delete_all_jobs(**kwargs):
     return make_post(DELETE_ALL_JOBS, **kwargs)
 
 
-def get_job_failures(service_name):
-    return make_post(JENKINS_JOB_FAILURES, service_name)
+def get_job_failures(service_name, **kwargs):
+    return make_post(JENKINS_JOB_FAILURES, service_name, **kwargs)
 
 
-def change_mesos_creds(mesos_username, service_name):
+def change_mesos_creds(mesos_username, service_name, **kwargs):
     return make_post(
         Template(CREDENTIAL_CHANGE).substitute(
             {
                 'userName': mesos_username,
             }
         ),
-        service_name)
+        service_name,
+        **kwargs)
 
 
 def make_post(
