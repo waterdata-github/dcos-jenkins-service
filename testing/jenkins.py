@@ -63,7 +63,7 @@ def install(service_name, role=None, mom=None, external_volume=None,
             if 'portDefinitions' in pkg_json:
                 p0 = pkg_json['portDefinitions'][0]
                 p0['labels'] = {
-                    'VIP_0': "{}.{}.l4lb.thisdcos.directory:10000"
+                    'VIP_0': "api.{}.{}.l4lb.thisdcos.directory:10000"
                              .format(service_name, mom)
                 }
 
@@ -82,7 +82,7 @@ def install(service_name, role=None, mom=None, external_volume=None,
 
     if strict_settings:
         if mom:
-            vip = "https://{}.{}.l4lb.thisdcos.directory:10000"\
+            vip = "https://api.{}.{}.l4lb.thisdcos.directory:10000"\
                 .format(service_name, mom)
         else:
             vip = None

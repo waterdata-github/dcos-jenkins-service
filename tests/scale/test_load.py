@@ -279,7 +279,7 @@ def _create_jobs(service_name, **kwargs):
         service_name: Jenkins instance name
     """
     if 'mom' in kwargs:
-        kwargs['vip'] = "https://{}.{}.l4lb.thisdcos.directory:10000"\
+        kwargs['vip'] = "https://api.{}.{}.l4lb.thisdcos.directory:10000"\
             .format(service_name, kwargs['mom'])
     m_label = _create_executor_configuration(service_name, **kwargs)
     _launch_jobs(service_name, label=m_label, **kwargs)
