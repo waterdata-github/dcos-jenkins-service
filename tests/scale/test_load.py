@@ -234,15 +234,15 @@ def _install_jenkins(service_name, security=None, **kwargs):
                         sa_name, sa_secret)
 
                 sdk_security.grant_permissions(
-                        'nobody', '*', sa_name)
+                        'root', '*', sa_name)
 
                 sdk_security.grant_permissions(
-                        'nobody', SHARED_ROLE, sa_name)
+                        'root', SHARED_ROLE, sa_name)
             kwargs['strict_settings'] = {
                 'secret_name': sa_secret,
                 'mesos_principal': sa_name,
             }
-            kwargs['service_user'] = 'nobody'
+            kwargs['service_user'] = 'root'
 
         log.info("Installing jenkins '{}'".format(service_name))
         jenkins.install(service_name, role=SHARED_ROLE, **kwargs)
