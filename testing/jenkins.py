@@ -60,13 +60,6 @@ def install(service_name, role=None, mom=None, external_volume=None,
         # this will register at `/service/<service_name>`
         pkg_json = sdk_install.get_package_json('jenkins', None, options)
         with marathon_on_marathon(mom):
-            if 'portDefinitions' in pkg_json:
-                p0 = pkg_json['portDefinitions'][0]
-                p0['labels'] = {
-                    'VIP_0': "api.{}.{}.l4lb.thisdcos.directory:10000"
-                             .format(service_name, mom)
-                }
-
             c = marathon.create_client()
             c.add_app(pkg_json)
             time_wait(lambda: deployment_predicate(service_name),
