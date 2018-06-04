@@ -32,6 +32,7 @@ def changePassword = { userName ->
   }
 }
 
+// the env var is set by DCOS when using a service account to run Jenkins
 def accountCreds = System.getenv("DCOS_SERVICE_ACCOUNT_CREDENTIAL")
 if (accountCreds) {
   Thread.start {
