@@ -107,7 +107,7 @@ RUN /usr/local/bin/install-plugins.sh       \
   greenballs:1.15                \
   handlebars:1.1.1               \
   ivy:1.28                       \
-  jackson2-api:2.8.11.1          \
+  jackson2-api:2.8.11.3          \
   job-dsl:1.68                   \
   jobConfigHistory:2.18          \
   jquery:1.12.4-0                \
