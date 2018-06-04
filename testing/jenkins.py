@@ -73,10 +73,6 @@ def install(service_name, role=None, mom=None, external_volume=None,
             additional_options=options,
             wait_for_deployment=False)
 
-    if strict_settings:
-        jenkins_remote_access.change_mesos_creds(
-            strict_settings['mesos_principal'], service_name)
-
 
 def uninstall(service_name, package_name='jenkins', role=None, mom=None):
     """Uninstall a Jenkins instance. This does not wait for deployment
