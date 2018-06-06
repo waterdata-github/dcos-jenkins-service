@@ -44,6 +44,7 @@ import sdk_quota
 import sdk_security
 import sdk_utils
 import shakedown
+import json
 
 from sdk_dcos import DCOS_SECURITY
 
@@ -56,6 +57,10 @@ DEPLOY_TIMEOUT = 15 * 60  # 15 mins
 JOB_RUN_TIMEOUT = 10 * 60  # 10 mins
 
 lock = Lock()
+TIMINGS = {
+            "deployments": {}, 
+            "serviceaccounts": {}
+        }
 
 
 class ResultThread(Thread):
@@ -76,7 +81,10 @@ class ResultThread(Thread):
 
     def run(self) -> None:
         try:
+            start = time.time()
             super().run()
+            end = time.time()
+            TIMINGS["deployments"][self.name] = end - start;
             self._result = True
         except Exception as e:
             self._result = False
@@ -138,6 +146,8 @@ def test_scaling_load(master_count,
                                  duration=work_duration,
                                  scenario=scenario)
     _wait_on_threads(job_threads, JOB_RUN_TIMEOUT)
+    r = json.dumps(TIMINGS)
+    print(r)
 
 
 @pytest.mark.scalecleanup
@@ -226,6 +236,7 @@ def _install_jenkins(service_name, security=None, **kwargs):
     try:
         if security == DCOS_SECURITY.strict:
             with lock:
+                start = time.time()
                 log.info("Creating service accounts for '{}'"
                          .format(service_name))
                 sa_name = "{}-principal".format(service_name)
@@ -238,6 +249,9 @@ def _install_jenkins(service_name, security=None, **kwargs):
 
                 sdk_security.grant_permissions(
                         'root', SHARED_ROLE, sa_name)
+                end = time.time()
+                TIMINGS["serviceaccounts"][service_name] = end - start
+
             kwargs['strict_settings'] = {
                 'secret_name': sa_secret,
                 'mesos_principal': sa_name,
