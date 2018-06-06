@@ -54,101 +54,21 @@
       "dashLength": 10,
       "dashes": false,
       "datasource": "${DS_PROMETHEUS}",
+      "description": "# of Jenkins masters currently running in the cluster",
       "fill": 1,
       "gridPos": {
-        "h": 11,
-        "w": 8,
+        "h": 9,
+        "w": 12,
         "x": 0,
         "y": 0
       },
-      "id": 6,
+      "id": 18,
       "legend": {
         "avg": false,
         "current": false,
         "max": false,
         "min": false,
-        "rightSide": false,
-        "show": false,
-        "total": false,
-        "values": false
-      },
-      "lines": true,
-      "linewidth": 1,
-      "links": [],
-      "nullPointMode": "null as zero",
-      "percentage": false,
-      "pointradius": 5,
-      "points": false,
-      "renderer": "flot",
-      "seriesOverrides": [],
-      "spaceLength": 10,
-      "stack": true,
-      "steppedLine": false,
-      "targets": [
-        {
-          "expr": "jenkins_queue_size_value",
-          "format": "time_series",
-          "intervalFactor": 1,
-          "legendFormat": "{{instance}}",
-          "refId": "A"
-        }
-      ],
-      "thresholds": [],
-      "timeFrom": null,
-      "timeShift": null,
-      "title": "Queue Size (stacked)",
-      "tooltip": {
-        "shared": true,
-        "sort": 0,
-        "value_type": "individual"
-      },
-      "type": "graph",
-      "xaxis": {
-        "buckets": null,
-        "mode": "time",
-        "name": null,
         "show": true,
-        "values": []
-      },
-      "yaxes": [
-        {
-          "format": "short",
-          "label": null,
-          "logBase": 1,
-          "max": null,
-          "min": null,
-          "show": true
-        },
-        {
-          "format": "short",
-          "label": null,
-          "logBase": 1,
-          "max": null,
-          "min": null,
-          "show": true
-        }
-      ]
-    },
-    {
-      "aliasColors": {},
-      "bars": false,
-      "dashLength": 10,
-      "dashes": false,
-      "datasource": "${DS_PROMETHEUS}",
-      "fill": 1,
-      "gridPos": {
-        "h": 11,
-        "w": 8,
-        "x": 8,
-        "y": 0
-      },
-      "id": 2,
-      "legend": {
-        "avg": false,
-        "current": false,
-        "max": false,
-        "min": false,
-        "show": false,
         "total": false,
         "values": false
       },
@@ -166,17 +86,18 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "rate(jenkins_runs_success_total[1m])",
+          "expr": "count(jenkinsstatsd_mesos_cloud_mesos_provision_mesos_samples)",
           "format": "time_series",
+          "hide": false,
           "intervalFactor": 1,
-          "legendFormat": "{{instance}}",
+          "legendFormat": "",
           "refId": "A"
         }
       ],
       "thresholds": [],
       "timeFrom": null,
       "timeShift": null,
-      "title": "Success Rate [1m]",
+      "title": "Number of Jenkins Masters",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -193,9 +114,9 @@
       "yaxes": [
         {
           "format": "short",
-          "label": "runs/second",
+          "label": null,
           "logBase": 1,
-          "max": "0.4",
+          "max": null,
           "min": null,
           "show": true
         },
@@ -242,21 +163,20 @@
       "renderer": "flot",
       "seriesOverrides": [],
       "spaceLength": 10,
-      "stack": true,
+      "stack": false,
       "steppedLine": false,
       "targets": [
         {
-          "expr": "rate(jenkins_runs_success_total[1m])",
+          "expr": "sum(jenkinsstatsd_jenkins_runs_success_m1_rate)",
           "format": "time_series",
           "intervalFactor": 1,
-          "legendFormat": "{{instance}}",
-          "refId": "A"
+          "refId": "B"
         }
       ],
       "thresholds": [],
       "timeFrom": null,
       "timeShift": null,
-      "title": "Success Rate [1m] (stacked)",
+      "title": "Success Rate [1m] (total)",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -300,14 +220,15 @@
         "h": 11,
         "w": 8,
         "x": 0,
-        "y": 11
+        "y": 9
       },
-      "id": 4,
+      "id": 6,
       "legend": {
         "avg": false,
         "current": false,
         "max": false,
         "min": false,
+        "rightSide": false,
         "show": false,
         "total": false,
         "values": false
@@ -326,17 +247,17 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "jenkins_executor_free_value",
+          "expr": "sum(jenkinsstatsd_jenkins_queue_size_value)",
           "format": "time_series",
           "intervalFactor": 1,
-          "legendFormat": "{{instance}}",
-          "refId": "A"
+          "legendFormat": "",
+          "refId": "B"
         }
       ],
       "thresholds": [],
       "timeFrom": null,
       "timeShift": null,
-      "title": "Executors Free (stacked)",
+      "title": "Queue Size (total)",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -353,7 +274,7 @@
       "yaxes": [
         {
           "format": "short",
-          "label": "Executors",
+          "label": null,
           "logBase": 1,
           "max": null,
           "min": null,
@@ -380,9 +301,9 @@
         "h": 11,
         "w": 8,
         "x": 8,
-        "y": 11
+        "y": 9
       },
-      "id": 11,
+      "id": 2,
       "legend": {
         "avg": false,
         "current": false,
@@ -406,17 +327,17 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "rate(jenkins_runs_failure_total[1m])",
+          "expr": "jenkinsstatsd_jenkins_runs_success_m1_rate",
           "format": "time_series",
           "intervalFactor": 1,
-          "legendFormat": "{{instance}}",
+          "legendFormat": "{{dcos_service_name}}",
           "refId": "B"
         }
       ],
       "thresholds": [],
       "timeFrom": null,
       "timeShift": null,
-      "title": "Failure Rate [1m]",
+      "title": "Success Rate [1m]",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -435,8 +356,8 @@
           "format": "short",
           "label": "",
           "logBase": 1,
-          "max": "0.4",
-          "min": "0",
+          "max": null,
+          "min": null,
           "show": true
         },
         {
@@ -486,17 +407,17 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "rate(jenkins_runs_failure_total[1m])",
+          "expr": "sum(jenkinsstatsd_jenkins_runs_failure_m1_rate)",
           "format": "time_series",
           "intervalFactor": 1,
-          "legendFormat": "{{instance}}",
+          "legendFormat": "",
           "refId": "B"
         }
       ],
       "thresholds": [],
       "timeFrom": null,
       "timeShift": null,
-      "title": "Failure Rate [1m] (stacked)",
+      "title": "Failure Rate [1m] (total)",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -515,7 +436,7 @@
           "format": "short",
           "label": "runs/second",
           "logBase": 1,
-          "max": "20",
+          "max": null,
           "min": "0",
           "show": true
         },
@@ -537,12 +458,12 @@
       "datasource": "${DS_PROMETHEUS}",
       "fill": 1,
       "gridPos": {
-        "h": 9,
+        "h": 11,
         "w": 8,
         "x": 0,
-        "y": 22
+        "y": 20
       },
-      "id": 9,
+      "id": 4,
       "legend": {
         "avg": false,
         "current": false,
@@ -566,17 +487,16 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "jenkins_executor_count_value",
+          "expr": "sum(jenkinsstatsd_jenkins_executor_free_value)",
           "format": "time_series",
           "intervalFactor": 1,
-          "legendFormat": "{{instance}}",
           "refId": "B"
         }
       ],
       "thresholds": [],
       "timeFrom": null,
       "timeShift": null,
-      "title": "Executors Total (stacked)",
+      "title": "Executors Free (total)",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -617,12 +537,12 @@
       "datasource": "${DS_PROMETHEUS}",
       "fill": 1,
       "gridPos": {
-        "h": 9,
+        "h": 11,
         "w": 8,
         "x": 8,
-        "y": 22
+        "y": 20
       },
-      "id": 15,
+      "id": 11,
       "legend": {
         "avg": false,
         "current": false,
@@ -646,17 +566,17 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "rate(jenkins_runs_total_total[1m])",
+          "expr": "jenkinsstatsd_jenkins_runs_failure_m1_rate",
           "format": "time_series",
           "intervalFactor": 1,
-          "legendFormat": "{{instance}}",
+          "legendFormat": "{{dcos_service_name}}",
           "refId": "A"
         }
       ],
       "thresholds": [],
       "timeFrom": null,
       "timeShift": null,
-      "title": "Build Rate",
+      "title": "Failure Rate [1m]",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -673,10 +593,10 @@
       "yaxes": [
         {
           "format": "short",
-          "label": null,
+          "label": "",
           "logBase": 1,
           "max": null,
-          "min": null,
+          "min": "0",
           "show": true
         },
         {
@@ -726,17 +646,16 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "rate(jenkins_runs_total_total[1m])",
+          "expr": "sum(jenkinsstatsd_jenkins_runs_total_m1_rate)",
           "format": "time_series",
           "intervalFactor": 1,
-          "legendFormat": "{{instance}}",
-          "refId": "A"
+          "refId": "B"
         }
       ],
       "thresholds": [],
       "timeFrom": null,
       "timeShift": null,
-      "title": "Build Rate (stacked)",
+      "title": "Build Rate (total)",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -782,6 +701,164 @@
         "x": 0,
         "y": 31
       },
+      "id": 9,
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": false,
+        "total": false,
+        "values": false
+      },
+      "lines": true,
+      "linewidth": 1,
+      "links": [],
+      "nullPointMode": "null as zero",
+      "percentage": false,
+      "pointradius": 5,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "expr": "sum(jenkinsstatsd_jenkins_executor_count_value)",
+          "format": "time_series",
+          "intervalFactor": 1,
+          "refId": "A"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Executors Total (total)",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "format": "short",
+          "label": "Executors",
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ]
+    },
+    {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "${DS_PROMETHEUS}",
+      "fill": 1,
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 8,
+        "y": 31
+      },
+      "id": 15,
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": false,
+        "total": false,
+        "values": false
+      },
+      "lines": true,
+      "linewidth": 1,
+      "links": [],
+      "nullPointMode": "null",
+      "percentage": false,
+      "pointradius": 5,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "expr": "jenkinsstatsd_jenkins_runs_total_m1_rate",
+          "format": "time_series",
+          "intervalFactor": 1,
+          "refId": "B"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Build Rate",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ]
+    },
+    {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "${DS_PROMETHEUS}",
+      "fill": 1,
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 0,
+        "y": 40
+      },
       "id": 8,
       "legend": {
         "avg": false,
@@ -806,11 +883,11 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "jenkins_job_waiting_duration{quantile=\"0.5\",}",
+          "expr": "jenkinsstatsd_jenkins_job_waiting_duration_mean",
           "format": "time_series",
           "intervalFactor": 1,
-          "legendFormat": "{{instance}}",
-          "refId": "A"
+          "legendFormat": "{{dcos_service_name}}",
+          "refId": "B"
         }
       ],
       "thresholds": [],
@@ -858,7 +935,7 @@
     "list": []
   },
   "time": {
-    "from": "now-5m",
+    "from": "now-1h",
     "to": "now"
   },
   "timepicker": {
@@ -889,5 +966,5 @@
   "timezone": "",
   "title": "Jenkins: Jobs",
   "uid": "kZIghMMmz",
-  "version": 18
+  "version": 3
 }
