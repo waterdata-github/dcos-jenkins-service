@@ -57,7 +57,7 @@ DEPLOY_TIMEOUT = 15 * 60  # 15 mins
 JOB_RUN_TIMEOUT = 10 * 60  # 10 mins
 
 TIMINGS = {
-            "deployments": {}, 
+            "deployments": {},
             "serviceaccounts": {}
         }
 LOCK = Lock()
@@ -69,6 +69,7 @@ class ResultThread(Thread):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self._result = None
+        self._event = None
 
     @property
     def result(self) -> bool:
@@ -79,15 +80,25 @@ class ResultThread(Thread):
         """
         return bool(self._result)
 
+    @property
+    def event(self):
+        return self._event
+
+    @event.setter
+    def event(self, event):
+        self._event = event
+
     def run(self) -> None:
+        start = time.time()
         try:
-            start = time.time()
             super().run()
-            end = time.time()
-            TIMINGS["deployments"][self.name] = end - start;
             self._result = True
         except Exception as e:
             self._result = False
+        finally:
+            end = time.time()
+            if self.event:
+                TIMINGS[self.event][self.name] = end - start
 
 
 @pytest.mark.scale
@@ -134,6 +145,7 @@ def test_scaling_load(master_count,
     # launch Jenkins services
     install_threads = _spawn_threads(masters,
                                      _install_jenkins,
+                                     event='deployments',
                                      client=marathon_client,
                                      external_volume=external_volume,
                                      security=security_mode,
@@ -205,7 +217,7 @@ def _set_quota(role, cpus):
     sdk_quota.create_quota(role, cpus=cpus)
 
 
-def _spawn_threads(names, target, daemon=False, **kwargs) -> List[ResultThread]:
+def _spawn_threads(names, target, daemon=False, event=None, **kwargs) -> List[ResultThread]:
     """Create and start threads running target. This will pass
     the thread name to the target as the first argument.
 
@@ -226,6 +238,7 @@ def _spawn_threads(names, target, daemon=False, **kwargs) -> List[ResultThread]:
                          name=service_name,
                          args=(service_name,),
                          kwargs=kwargs)
+        t.event = event
         thread_list.append(t)
         t.start()
     return thread_list
