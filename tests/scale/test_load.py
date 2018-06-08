@@ -342,7 +342,7 @@ def _create_executor_configuration(service_name: str) -> str:
                                     executorCpus=0.3,
                                     executorMem=1800,
                                     idleTerminationMinutes=1,
-                                    timeout_seconds=300)
+                                    timeout_seconds=600)
     return mesos_label
 
 
@@ -379,7 +379,7 @@ def _launch_jobs(service_name: str,
 
     jenkins.run_job(service_name,
                     job_name,
-                    timeout_seconds=300,
+                    timeout_seconds=600,
                     **{'JOBCOUNT':       str(jobs),
                        'AGENT_LABEL':    label,
                        'SINGLE_USE':     single_use_str,
