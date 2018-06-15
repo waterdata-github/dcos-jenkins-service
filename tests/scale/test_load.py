@@ -268,6 +268,7 @@ def _install_jenkins(service_name,
                          .format(service_name))
                 sa_name = "{}-principal".format(service_name)
                 sa_secret = "jenkins-{}-secret".format(service_name)
+                '''
                 sdk_security.create_service_account(
                         sa_name, sa_secret)
 
@@ -276,6 +277,9 @@ def _install_jenkins(service_name,
 
                 sdk_security.grant_permissions(
                         'root', SHARED_ROLE, sa_name)
+                '''
+                sa_name = "jenkins-principal"
+                sa_secret = "jenkinsSuperUserKey"
                 end = time.time()
                 TIMINGS["serviceaccounts"][service_name] = end - start
 
