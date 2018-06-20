@@ -55,12 +55,14 @@ DOCKER_IMAGE="benclarkwood/dind:3"
 # initial timeout waiting on deployments
 DEPLOY_TIMEOUT = 15 * 60  # 15 mins
 JOB_RUN_TIMEOUT = 10 * 60  # 10 mins
+SERVICE_ACCOUNT_TIMEOUT = 5 * 60 # 5 mins
 
 TIMINGS = {
             "deployments": {},
             "serviceaccounts": {}
         }
 LOCK = Lock()
+ACCOUNTS = {}
 
 
 class ResultThread(Thread):
@@ -132,7 +134,6 @@ def test_scaling_load(master_count,
     if mom and cpu_quota != 0.0:
         with shakedown.marathon_on_marathon(mom):
             _setup_quota(SHARED_ROLE, cpu_quota)
-
     # create marathon client
     if mom:
         with shakedown.marathon_on_marathon(mom):
@@ -142,6 +143,14 @@ def test_scaling_load(master_count,
 
     masters = ["jenkins{}".format(sdk_utils.random_string()) for _ in
                range(0, int(master_count))]
+   
+    # create service accounts in parallel
+    service_account_threads = _spawn_threads(masters,
+                                            _create_service_accounts,
+                                            security=SERVICE_ACCOUNT_TIMEOUT)
+
+    thread_failures = _wait_and_get_failures(service_account_threads,
+                                             timeout=DEPLOY_TIMEOUT)
     # launch Jenkins services
     install_threads = _spawn_threads(masters,
                                      _install_jenkins,
@@ -244,6 +253,28 @@ def _spawn_threads(names, target, daemon=False, event=None, **kwargs) -> List[Re
     return thread_list
 
 
+def _create_service_accounts(service_name, security=None):
+    if security == DCOS_SECURITY.strict:
+        start = time.time()
+        log.info("Creating service accounts for '{}'"
+                 .format(service_name))
+        sa_name = "{}-principal".format(service_name)
+        sa_secret = "jenkins-{}-secret".format(service_name)
+        sdk_security.create_service_account(
+                sa_name, sa_secret)
+
+        sdk_security.grant_permissions(
+                'root', '*', sa_name)
+
+        sdk_security.grant_permissions(
+                'root', SHARED_ROLE, sa_name)
+        end = time.time()
+        ACCOUNTS[service_name] = {}
+        ACCOUNTS[service_name]["sa_name"] = sa_name 
+        ACCOUNTS[service_name]["sa_secret"] = sa_secret
+        TIMINGS["serviceaccounts"][service_name] = end - start
+
+
 def _install_jenkins(service_name,
                      client=None,
                      security=None,
@@ -262,30 +293,9 @@ def _install_jenkins(service_name,
 
     try:
         if security == DCOS_SECURITY.strict:
-            with LOCK:
-                start = time.time()
-                log.info("Creating service accounts for '{}'"
-                         .format(service_name))
-                sa_name = "{}-principal".format(service_name)
-                sa_secret = "jenkins-{}-secret".format(service_name)
-                '''
-                sdk_security.create_service_account(
-                        sa_name, sa_secret)
-
-                sdk_security.grant_permissions(
-                        'root', '*', sa_name)
-
-                sdk_security.grant_permissions(
-                        'root', SHARED_ROLE, sa_name)
-                '''
-                sa_name = "jenkins-principal"
-                sa_secret = "jenkinsSuperUserKey"
-                end = time.time()
-                TIMINGS["serviceaccounts"][service_name] = end - start
-
             kwargs['strict_settings'] = {
-                'secret_name': sa_secret,
-                'mesos_principal': sa_name,
+                'secret_name':  ACCOUNTS[service_name]["sa_secret"],
+                'mesos_principal': ACCOUNTS[service_name]["sa_name"],
             }
             kwargs['service_user'] = 'root'
 
