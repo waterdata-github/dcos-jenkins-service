@@ -150,7 +150,7 @@ def test_scaling_load(master_count,
                                             security=SERVICE_ACCOUNT_TIMEOUT)
 
     thread_failures = _wait_and_get_failures(service_account_threads,
-                                             timeout=DEPLOY_TIMEOUT)
+                                             timeout=SERVICE_ACCOUNT_TIMEOUT)
     # launch Jenkins services
     install_threads = _spawn_threads(masters,
                                      _install_jenkins,
