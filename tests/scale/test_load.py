@@ -147,7 +147,7 @@ def test_scaling_load(master_count,
     # create service accounts in parallel
     service_account_threads = _spawn_threads(masters,
                                             _create_service_accounts,
-                                            security=SERVICE_ACCOUNT_TIMEOUT)
+                                            security=security_mode)
 
     thread_failures = _wait_and_get_failures(service_account_threads,
                                              timeout=SERVICE_ACCOUNT_TIMEOUT)
