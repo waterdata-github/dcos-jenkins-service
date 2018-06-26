@@ -51,7 +51,7 @@ def populate_jenkins_location_config(location_xml, url):
     :type url: str
     """
     tree, root = _get_xml_root(location_xml)
-    _find_and_set(root, 'jenkinsUrl', url, True)
+    _find_and_set(root, 'jenkinsUrl', url)
     tree.write(location_xml)
 
 
