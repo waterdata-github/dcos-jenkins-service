@@ -3,7 +3,6 @@
   "cpus": {{service.cpus}},
   "mem": {{service.mem}},
   "instances": 1,
-  "user": "root",
   {{#security.secret-name}}
   "secrets": {
       "serviceCredential": {
@@ -47,7 +46,7 @@
         "volumes": [
           {{#storage.host-volume}}
             {
-              "containerPath": "/var/jenkins_home",
+              "containerPath": "/var/jenkinsdcos_home",
               "hostPath": "{{storage.host-volume}}/{{service.name}}",
               "mode": "RW"
             }
