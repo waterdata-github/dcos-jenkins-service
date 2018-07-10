@@ -112,7 +112,9 @@ def test_scaling_load(master_count,
                       work_duration,
                       mom,
                       external_volume: bool,
-                      scenario) -> None:
+                      scenario,
+                      min_index,
+                      max_index) -> None:
     """Launch a load test scenario. This does not verify the results
     of the test, but does ensure the instances and jobs were created.
 
@@ -129,6 +131,8 @@ def test_scaling_load(master_count,
         work_duration: Time, in seconds, for generated jobs to sleep
         mom: Marathon on Marathon instance name
         external_volume: External volume on rexray (true) or local volume (false)
+        min_index: minimum index to begin jenkins suffixes at
+        max_index: maximum index to end jenkins suffixes at
     """
     security_mode = sdk_dcos.get_security_mode()
     if mom and cpu_quota != 0.0:
@@ -141,8 +145,15 @@ def test_scaling_load(master_count,
     else:
         marathon_client = shakedown.marathon.create_client()
 
-    masters = ["jenkins{}".format(sdk_utils.random_string()) for _ in
-               range(0, int(master_count))]
+    masters = []
+    if min_index == -1 or max_index == -1:
+        masters = ["jenkins{}".format(sdk_utils.random_string()) for _ in
+                   range(0, int(master_count))]
+    else:
+        #max and min indexes are specified
+        #NOTE: using min/max will override master count
+        masters = ["jenkins{}".format(index) for index in
+                    range(min_index, max_index)]
    
     # create service accounts in parallel
     service_account_threads = _spawn_threads(masters,
