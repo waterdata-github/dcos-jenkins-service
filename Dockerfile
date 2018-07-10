@@ -38,7 +38,7 @@ RUN curl -fsSL "$LIBMESOS_DOWNLOAD_URL" -o libmesos-bundle.tar.gz  \
   && rm libmesos-bundle.tar.gz
 # update to newer git version
 RUN echo "deb http://ftp.debian.org/debian testing main" >> /etc/apt/sources.list \
-  && apt-get update && apt-get -t testing install -y git
+  && apt-get update && apt-get -t testing install -y git && apt-get install -y acl
 
 RUN mkdir -p "${JENKINS_HOME}" "${JENKINS_FOLDER}/war"
 
@@ -183,12 +183,20 @@ RUN groupadd -g ${gid} nobody \
     && usermod -a -G users nobody \
     && echo "nobody:x:65534:65534:nobody:/nonexistent:/usr/sbin/nologin" >> /etc/passwd
 
-RUN chmod -R ugo+rw "$JENKINS_HOME" "${JENKINS_FOLDER}" \
-    && chmod -R ugo+r "${JENKINS_STAGING}" \
-    && chmod -R ugo+rx /usr/local/jenkins/bin/ \
-    && chmod -R ugo+rw /var/jenkins_home/ \
-    && chmod -R ugo+rw /var/lib/nginx/ /var/nginx/ /var/log/nginx \
-    && chmod ugo+rx /usr/local/jenkins/bin/*
+RUN chown -R ${uid} "$JENKINS_HOME" "${JENKINS_FOLDER}" "${JENKINS_STAGING}" \
+    && setfacl -R -m u:65534:rwx "$JENKINS_HOME" \
+    && setfacl -R -m u:65534:rwx "${JENKINS_FOLDER}" \
+    && setfacl -R -m u:65534:rwx "${JENKINS_STAGING}" \
+    && chown -R ${uid} /usr/local/jenkins/bin/ \
+    && setfacl -R -m u:65534:rwx /usr/local/jenkins/bin/ \
+    && chown -R ${uid} /var/jenkins_home/ \
+    && setfacl -R -m u:65534:rwx /var/jenkins_home/ \
+    && chown -R ${uid} /var/lib/nginx/ /var/nginx/ /var/log/nginx \
+    && setfacl -R -m u:65534:rw /var/lib/nginx \
+    && setfacl -R -m u:65534:rw /var/nginx/ \
+    && setfacl -R -m u:65534:rw /var/log/nginx \
+    && chown ${uid} /usr/local/jenkins/bin/* \
+    && setfacl -m u:65534:rx /usr/local/jenkins/bin/*
 
 USER ${user}
 
