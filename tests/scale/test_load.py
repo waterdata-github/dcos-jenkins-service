@@ -55,7 +55,7 @@ DOCKER_IMAGE="benclarkwood/dind:3"
 # initial timeout waiting on deployments
 DEPLOY_TIMEOUT = 15 * 60  # 15 mins
 JOB_RUN_TIMEOUT = 10 * 60  # 10 mins
-SERVICE_ACCOUNT_TIMEOUT = 5 * 60 # 5 mins
+SERVICE_ACCOUNT_TIMEOUT = 15 * 60 # 5 mins
 
 TIMINGS = {
             "deployments": {},
@@ -266,29 +266,28 @@ def _spawn_threads(names, target, daemon=False, event=None, **kwargs) -> List[Re
 
 def _create_service_accounts(service_name, security=None):
     if security == DCOS_SECURITY.strict:
-        with LOCK:
-            try:
-                start = time.time()
-                log.info("Creating service accounts for '{}'"
-                         .format(service_name))
-                sa_name = "{}-principal".format(service_name)
-                sa_secret = "jenkins-{}-secret".format(service_name)
-                sdk_security.create_service_account(
-                        sa_name, sa_secret)
+        try:
+            start = time.time()
+            log.info("Creating service accounts for '{}'"
+                     .format(service_name))
+            sa_name = "{}-principal".format(service_name)
+            sa_secret = "jenkins-{}-secret".format(service_name)
+            sdk_security.create_service_account(
+                    sa_name, sa_secret, service_name)
 
-                sdk_security.grant_permissions(
-                        'root', '*', sa_name)
+            sdk_security.grant_permissions(
+                    'root', '*', sa_name)
 
-                sdk_security.grant_permissions(
-                        'root', SHARED_ROLE, sa_name)
-                end = time.time()
-                ACCOUNTS[service_name] = {}
-                ACCOUNTS[service_name]["sa_name"] = sa_name 
-                ACCOUNTS[service_name]["sa_secret"] = sa_secret
-                TIMINGS["serviceaccounts"][service_name] = end - start
-            except Exception as e:
-                log.warning("Error encountered while creating service account: {}".format(e))
-                raise e
+            sdk_security.grant_permissions(
+                    'root', SHARED_ROLE, sa_name)
+            end = time.time()
+            ACCOUNTS[service_name] = {}
+            ACCOUNTS[service_name]["sa_name"] = sa_name 
+            ACCOUNTS[service_name]["sa_secret"] = sa_secret
+            TIMINGS["serviceaccounts"][service_name] = end - start
+        except Exception as e:
+            log.warning("Error encountered while creating service account: {}".format(e))
+            raise e
 
 
 def _install_jenkins(service_name,
