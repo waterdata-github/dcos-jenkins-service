@@ -45,6 +45,9 @@ def pytest_addoption(parser):
     parser.addoption('--max', action='store', default=-1,
                      help='max jenkins index to end at'
                           '(default: -1).')
+    parser.addoption('--batch-size', action='store', default=1,
+                     help='batch size to deploy jenkins masters in'
+                          '(default: 1).')
 
 
 @pytest.fixture
@@ -98,4 +101,8 @@ def min_index(request) -> int:
 @pytest.fixture
 def max_index(request) -> int:
     return int(request.config.getoption('--max'))
+
+@pytest.fixture
+def batch_size(request) -> int:
+    return int(request.config.getoption('--batch-size'))
 

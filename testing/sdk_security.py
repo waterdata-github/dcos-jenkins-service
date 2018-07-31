@@ -149,8 +149,6 @@ def create_service_account(service_account_name: str, service_account_secret: st
     """
     Creates a service account. If it already exists, it is deleted.
     """
-    install_enterprise_cli()
-
     log.info('Creating service account for account={account} secret={secret}'.format(
         account=service_account_name,
         secret=service_account_secret))

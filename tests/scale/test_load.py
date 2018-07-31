@@ -114,7 +114,8 @@ def test_scaling_load(master_count,
                       external_volume: bool,
                       scenario,
                       min_index,
-                      max_index) -> None:
+                      max_index,
+                      batch_size) -> None:
     """Launch a load test scenario. This does not verify the results
     of the test, but does ensure the instances and jobs were created.
 
@@ -133,6 +134,7 @@ def test_scaling_load(master_count,
         external_volume: External volume on rexray (true) or local volume (false)
         min_index: minimum index to begin jenkins suffixes at
         max_index: maximum index to end jenkins suffixes at
+        batch_size: batch size to deploy jenkins instances in
     """
     security_mode = sdk_dcos.get_security_mode()
     if mom and cpu_quota != 0.0:
@@ -156,6 +158,7 @@ def test_scaling_load(master_count,
                     range(min_index, max_index)]
    
     # create service accounts in parallel
+    sdk_security.install_enterprise_cli()
     service_account_threads = _spawn_threads(masters,
                                             _create_service_accounts,
                                             security=security_mode)
@@ -163,29 +166,34 @@ def test_scaling_load(master_count,
     thread_failures = _wait_and_get_failures(service_account_threads,
                                              timeout=SERVICE_ACCOUNT_TIMEOUT)
     # launch Jenkins services
-    install_threads = _spawn_threads(masters,
-                                     _install_jenkins,
-                                     event='deployments',
-                                     client=marathon_client,
-                                     external_volume=external_volume,
-                                     security=security_mode,
-                                     daemon=True)
-    thread_failures = _wait_and_get_failures(install_threads,
-                                             timeout=DEPLOY_TIMEOUT)
-    thread_names = [x.name for x in thread_failures]
+    current = 0
+    end = max_index - min_index - 1
+    while current + batch_size <= end:
+        batched_masters = masters[current:current+batch_size]
+        install_threads = _spawn_threads(batched_masters,
+                                         _install_jenkins,
+                                         event='deployments',
+                                         client=marathon_client,
+                                         external_volume=external_volume,
+                                         security=security_mode,
+                                         daemon=True)
+        thread_failures = _wait_and_get_failures(install_threads,
+                                                 timeout=DEPLOY_TIMEOUT)
+        thread_names = [x.name for x in thread_failures]
 
-    # the rest of the commands require a running Jenkins instance
-    deployed_masters = [x for x in masters if x not in thread_names]
-    job_threads = _spawn_threads(deployed_masters,
-                                 _create_jobs,
-                                 jobs=job_count,
-                                 single=single_use,
-                                 delay=run_delay,
-                                 duration=work_duration,
-                                 scenario=scenario)
-    _wait_on_threads(job_threads, JOB_RUN_TIMEOUT)
-    r = json.dumps(TIMINGS)
-    print(r)
+        # the rest of the commands require a running Jenkins instance
+        deployed_masters = [x for x in batched_masters if x not in thread_names]
+        job_threads = _spawn_threads(deployed_masters,
+                                     _create_jobs,
+                                     jobs=job_count,
+                                     single=single_use,
+                                     delay=run_delay,
+                                     duration=work_duration,
+                                     scenario=scenario)
+        _wait_on_threads(job_threads, JOB_RUN_TIMEOUT)
+        r = json.dumps(TIMINGS)
+        print(r)
+        current = current + batch_size
 
 
 @pytest.mark.scalecleanup
