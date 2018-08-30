@@ -22,6 +22,7 @@ Base packages:
   * [Nginx][nginx-home] 1.10.1
 
 Jenkins plugins:
+
 NOTE: plugins may be customized / updated by editing the Dockerfile at the top level of this repo.
   * ant v1.8
   * ansicolor v0.5.2
