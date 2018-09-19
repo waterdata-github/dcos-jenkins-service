@@ -1,6 +1,11 @@
 """
 A way to launch numerous Jenkins masters and jobs with pytest.
 
+Pre-requisites. Have the following environment variables exported with appropriate values:
+    * DCOS_CLUSTER_URL
+    * DCOS_LOGIN_USERNAME
+    * DCOS_LOGIN_PASSWORD
+
 From the CLI, this can be run as follows:
     $ PYTEST_ARGS="--masters=3 --jobs=10" ./test.sh -m scale jenkins
 To specify a CPU quota (what JPMC does) then run:
@@ -27,6 +32,8 @@ This supports the following configuration params:
     * What test scenario to run (--scenario); supported values:
         - sleep (sleep for --work-duration)
         - buildmarathon (build the open source marathon project)
+
+For additional details see conftest.py in the root folder.
 """
 
 import logging
@@ -51,7 +58,7 @@ from sdk_dcos import DCOS_SECURITY
 log = logging.getLogger(__name__)
 
 SHARED_ROLE = "jenkins-role"
-DOCKER_IMAGE="benclarkwood/dind:3"
+DOCKER_IMAGE="mesosphere/jenkins-dind:0.6.0-alpine"
 # initial timeout waiting on deployments
 DEPLOY_TIMEOUT = 15 * 60  # 15 mins
 JOB_RUN_TIMEOUT = 10 * 60  # 10 mins
@@ -149,8 +156,13 @@ def test_scaling_load(master_count,
 
     masters = []
     if min_index == -1 or max_index == -1:
-        masters = ["jenkins{}".format(sdk_utils.random_string()) for _ in
+        masters = ["jenkins{}".format(index) for index in
                    range(0, int(master_count))]
+
+        #Explicitly set these values for the loop below
+        min_index = 0
+        max_index = master_count
+        batch_size = 1
     else:
         #max and min indexes are specified
         #NOTE: using min/max will override master count

@@ -39,6 +39,7 @@ enterprise="true"
 interactive="false"
 headless="false"
 package_registry="false"
+docker_image="mesosphere/jenkins-dind:0.6.0-alpine"
 
 function usage()
 {
@@ -53,6 +54,7 @@ function usage()
     echo "--interactive start a docker container in interactive mode"
     echo "--headless leave STDIN available (mutually exclusive with --interactive)"
     echo "--package-registry Use package registry to install packages"
+    echo "--docker-image Jenkins Docker image to use"
     echo "--dcos-files-path DCOS_FILES_PATH sets the path to look for .dcos files. If empty, use stub universe urls to build .dcos file(s)."
     echo "--gradle-cache PATH sets the gradle cache to the specified path [default ${gradle_cache}]."
     echo "               Setting PATH to \"\" will disable the cache."
@@ -134,6 +136,10 @@ case $key in
     dcos_files_path="$(abs_path "$2")"
     shift
     ;;
+    --docker-image)
+    docker_image="$2"
+    shift # past argument
+    ;;
     --gradle-cache)
     gradle_cache="$2"
     shift
@@ -195,6 +201,7 @@ echo "headless=$headless"
 echo "package-registry=${package_registry}"
 echo "security=$security"
 echo "enterprise=$enterprise"
+echo "docker-image=${docker_image}"
 
 DOCKER_ARGS=
 if [ -n $gradle_cache ]; then
@@ -284,6 +291,7 @@ docker run --rm \
     -e PACKAGE_REGISTRY_ENABLED="${package_registry}" \
     -e PACKAGE_REGISTRY_STUB_URL="${PACKAGE_REGISTRY_STUB_URL}" \
     -e DCOS_FILES_PATH="${dcos_files_path}" \
+    -e DOCKER_IMAGE="${docker_image}" \
     -v "${dcos_files_path}":"${dcos_files_path}" \
     -v $(pwd):$WORK_DIR \
     -v $ssh_path:/ssh/key \

@@ -77,7 +77,9 @@ def install(service_name, client,
     time_wait(lambda: fn(service_name, client),
               TIMEOUT_SECONDS,
               sleep_seconds=20)
-
+    if strict_settings:	
+        jenkins_remote_access.change_mesos_creds(	
+            strict_settings['mesos_principal'], service_name)
 
 def uninstall(service_name, package_name='jenkins', role=None, mom=None):
     """Uninstall a Jenkins instance. This does not wait for deployment
