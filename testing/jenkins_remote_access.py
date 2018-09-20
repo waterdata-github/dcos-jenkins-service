@@ -221,7 +221,7 @@ import org.datadog.jenkins.plugins.datadog.DatadogBuildListener
 
 def j = Jenkins.getInstance()
 def d = j.getDescriptor("org.datadog.jenkins.plugins.datadog.DatadogBuildListener")
-d.setHostname('https://$hostname:8080')
+d.setHostname('$hostname')
 d.setTagNode(true)
 d.setApiKey('$apikey')
 d.save()
