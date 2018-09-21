@@ -32,7 +32,11 @@ This supports the following configuration params:
     * What test scenario to run (--scenario); supported values:
         - sleep (sleep for --work-duration)
         - buildmarathon (build the open source marathon project)
-
+    * Which hostname to install on. NOTE: Must be Private Node IP! (--pinned-hostname);
+        - the Jenkins installation location is tied to storage agents, 
+        we need to pin installations to specific agents on service restarts.
+        - Must be a private node, else Marathon won't deploy. (i.e musn't have public_ip attribute)
+    * Location of host-volume. (--pinned-host-volume=/tmp/jenkins)
 For additional details see conftest.py in the root folder.
 """
 
@@ -120,7 +124,9 @@ def test_scaling_load(master_count,
                       scenario,
                       min_index,
                       max_index,
-                      batch_size) -> None:
+                      batch_size,
+                      pinned_hostname,
+                      pinned_host_volume) -> None:
 
     """Launch a load test scenario. This does not verify the results
     of the test, but does ensure the instances and jobs were created.
@@ -188,7 +194,9 @@ def test_scaling_load(master_count,
                                          external_volume=external_volume,
                                          security=security_mode,
                                          daemon=True,
-                                         mom=mom)
+                                         mom=mom,
+                                         pinned_hostname=pinned_hostname,
+                                         pinned_host_volume=pinned_host_volume)
         thread_failures = _wait_and_get_failures(install_threads,
                                                  timeout=DEPLOY_TIMEOUT)
         thread_names = [x.name for x in thread_failures]

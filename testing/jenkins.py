@@ -19,7 +19,9 @@ def install(service_name, client,
             strict_settings=None,
             service_user=None,
             fn=None,
-            mom=None):
+            mom=None,
+            pinned_hostname=None,
+            pinned_host_volume=None):
     """Install a Jenkins instance and set the service name to
     `service_name`. This does not wait for deployment to finish.
 
@@ -68,6 +70,12 @@ def install(service_name, client,
 
     if service_user:
         options['service']['user'] = service_user
+
+    if pinned_hostname and pinned_host_volume:
+        options["storage"] = {
+            "pinned-hostname": pinned_hostname,
+            "host-volume": pinned_host_volume
+        }
 
     # get the package json for given options
     pkg_json = sdk_install.get_package_json('jenkins', None, options)
