@@ -52,6 +52,9 @@ def pytest_addoption(parser):
                      help='agent host to pin storage volumes to', required=True)
     parser.addoption('--pinned-host-volume', action='store', type=str,
                      help='storage volume location for jenkins data. ', required=True)
+    parser.addoption('--datadog-api-key', action='store', type=str,
+                     help='datadog metrics api key', required=True)
+
 
 
 
@@ -119,6 +122,11 @@ def pinned_hostname(request) -> str:
 @pytest.fixture
 def pinned_host_volume(request) -> str:
     return request.config.getoption('--pinned-host-volume')
+
+@pytest.fixture
+def datadog_api_key(request) -> str:
+    return request.config.getoption('--datadog-api-key')
+
 
 
 

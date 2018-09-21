@@ -7,13 +7,13 @@ Pre-requisites. Have the following environment variables exported with appropria
     * DCOS_LOGIN_PASSWORD
 
 From the CLI, this can be run as follows:
-    $ PYTEST_ARGS="--masters=3 --jobs=10" ./test.sh -m load jenkins
+    $ PYTEST_ARGS="--masters=3 --jobs=10" ./test.sh -m scale jenkins
 To specify a CPU quota (what JPMC does) then run:
-    $ PYTEST_ARGS="--masters=3 --jobs=10 --cpu-quota=10.0" ./test.sh -m load jenkins
+    $ PYTEST_ARGS="--masters=3 --jobs=10 --cpu-quota=10.0" ./test.sh -m scale jenkins
 To enable single use:
-    $ PYTEST_ARGS="--masters=3 --jobs=10 --single-use" ./test.sh -m load jenkins
+    $ PYTEST_ARGS="--masters=3 --jobs=10 --single-use" ./test.sh -m scale jenkins
 And to clean-up a test run of Jenkins instances:
-    $ ./test.sh -m loadcleanup jenkins
+    $ ./test.sh -m scalecleanup jenkins
 
 This supports the following configuration params:
     * Number of Jenkins masters (--masters)
@@ -39,7 +39,7 @@ This supports the following configuration params:
     * Location of host-volume. (--pinned-host-volume=/tmp/jenkins)
 For additional details see conftest.py in the root folder.
 """
-
+import pprint
 import logging
 import time
 from threading import Thread, Lock
@@ -112,8 +112,8 @@ class ResultThread(Thread):
                 TIMINGS[self.event][self.name] = end - start
 
 
-@pytest.mark.load
-def test_scaling_load(master_count,
+@pytest.mark.scale
+def test_scaling_scale(master_count,
                       job_count,
                       single_use: bool,
                       run_delay,
@@ -126,7 +126,8 @@ def test_scaling_load(master_count,
                       max_index,
                       batch_size,
                       pinned_hostname,
-                      pinned_host_volume) -> None:
+                      pinned_host_volume,
+                      datadog_api_key) -> None:
 
     """Launch a load test scenario. This does not verify the results
     of the test, but does ensure the instances and jobs were created.
@@ -148,6 +149,8 @@ def test_scaling_load(master_count,
         max_index: maximum index to end jenkins suffixes at
         batch_size: batch size to deploy jenkins instances in
     """
+            
+    log.info("\n\n\nDELETEME@kjoshi Running new test_scaling_scale code!\n\n\n")
     security_mode = sdk_dcos.get_security_mode()
     if mom and cpu_quota != 0.0:
         with shakedown.marathon_on_marathon(mom):
@@ -196,11 +199,13 @@ def test_scaling_load(master_count,
                                          daemon=True,
                                          mom=mom,
                                          pinned_hostname=pinned_hostname,
-                                         pinned_host_volume=pinned_host_volume)
+                                         pinned_host_volume=pinned_host_volume,
+                                         datadog_api_key=datadog_api_key)
         thread_failures = _wait_and_get_failures(install_threads,
                                                  timeout=DEPLOY_TIMEOUT)
         thread_names = [x.name for x in thread_failures]
 
+        
         # the rest of the commands require a running Jenkins instance
         deployed_masters = [x for x in batched_masters if x not in thread_names]
         job_threads = _spawn_threads(deployed_masters,
@@ -216,8 +221,8 @@ def test_scaling_load(master_count,
         current = current + batch_size
 
 
-@pytest.mark.loadcleanup
-def test_cleanup_load(mom) -> None:
+@pytest.mark.scalecleanup
+def test_cleanup_scale(mom) -> None:
     """Blanket clean-up of jenkins instances on a DC/OS cluster.
 
     1. Queries Marathon for all apps matching "jenkins" prefix
@@ -319,6 +324,7 @@ def _create_service_accounts(service_name, security=None):
 
 
 def _install_jenkins(service_name,
+                     datadog_api_key,
                      client=None,
                      security=None,
                      **kwargs):
@@ -342,12 +348,20 @@ def _install_jenkins(service_name,
             }
             kwargs['service_user'] = 'root'
 
-        log.info("Installing jenkins '{}'".format(service_name))
+        pprint.pprint(kwargs) 
+        pinned_hostname = kwargs['pinned_hostname']
+        pinned_host_volume = kwargs['pinned_host_volume']
+        # datadog_api_key = kwargs['datadog_api_key']
+        log.info("Installing jenkins '{}' on host '{}' at host-volume '{}'".
+                format(service_name, pinned_hostname, pinned_host_volume))
         jenkins.install(service_name,
                         client,
                         role=SHARED_ROLE,
                         fn=_wait_for_deployment,
                         **kwargs)
+        log.info("Installing jenkins datadog metrics plugins '{}'".format(service_name))
+        jenkins.install_datadog_metrics_plugin(service_name, pinned_hostname, datadog_api_key)  
+
     except Exception as e:
         log.warning("Error encountered while installing Jenkins: {}".format(e))
         raise e
