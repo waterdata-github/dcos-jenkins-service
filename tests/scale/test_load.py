@@ -48,6 +48,7 @@ from xml.etree import ElementTree
 
 import config
 import jenkins
+import jenkins_common
 import pytest
 import sdk_dcos
 import sdk_marathon
@@ -61,17 +62,12 @@ from sdk_dcos import DCOS_SECURITY
 
 log = logging.getLogger(__name__)
 
-SHARED_ROLE = "jenkins-role"
-DOCKER_IMAGE="mesosphere/jenkins-dind:0.6.0-alpine"
-# initial timeout waiting on deployments
+# # initial timeout waiting on deployments
 DEPLOY_TIMEOUT = 15 * 60  # 15 mins
 JOB_RUN_TIMEOUT = 10 * 60  # 10 mins
 SERVICE_ACCOUNT_TIMEOUT = 15 * 60 # 5 mins
 
-LOCK = Lock()
-
 TIMINGS = {"deployments": {}, "serviceaccounts": {}}
-ACCOUNTS = {}
 
 
 class ResultThread(Thread):
@@ -151,7 +147,7 @@ def test_scaling_load(master_count,
     security_mode = sdk_dcos.get_security_mode()
     if mom and cpu_quota != 0.0:
         with shakedown.marathon_on_marathon(mom):
-            _setup_quota(SHARED_ROLE, cpu_quota)
+            jenkins_common.setup_quota(SHARED_ROLE, cpu_quota)
 
     # create marathon client
     if mom:
@@ -177,7 +173,7 @@ def test_scaling_load(master_count,
     # create service accounts in parallel
     sdk_security.install_enterprise_cli()
     service_account_threads = _spawn_threads(masters,
-                                            _create_service_accounts,
+                                            jenkins_common.create_service_accounts,
                                             security=security_mode)
 
     thread_failures = _wait_and_get_failures(service_account_threads,
@@ -188,7 +184,7 @@ def test_scaling_load(master_count,
     while current + batch_size <= end:
         batched_masters = masters[current:current+batch_size]
         install_threads = _spawn_threads(batched_masters,
-                                         _install_jenkins,
+                                         jenkins_common.install_jenkins,
                                          event='deployments',
                                          client=marathon_client,
                                          external_volume=external_volume,
@@ -204,7 +200,7 @@ def test_scaling_load(master_count,
         # the rest of the commands require a running Jenkins instance
         deployed_masters = [x for x in batched_masters if x not in thread_names]
         job_threads = _spawn_threads(deployed_masters,
-                                     _create_jobs,
+                                     jenkins_common.create_jobs,
                                      jobs=job_count,
                                      single=single_use,
                                      delay=run_delay,
@@ -238,31 +234,10 @@ def test_cleanup_load(mom) -> None:
         service_ids.append(service_id)
 
     cleanup_threads = _spawn_threads(service_ids,
-                                     _cleanup_jenkins_install,
+                                     jenkins_common.cleanup_jenkins_install,
                                      mom=mom,
                                      daemon=False)
     _wait_and_get_failures(cleanup_threads, timeout=JOB_RUN_TIMEOUT)
-
-
-def _setup_quota(role, cpus):
-    current_quotas = sdk_quota.list_quotas()
-    if "infos" not in current_quotas:
-        _set_quota(role, cpus)
-        return
-
-    match = False
-    for quota in current_quotas["infos"]:
-        if quota["role"] == role:
-            match = True
-            break
-
-    if match:
-        sdk_quota.remove_quota(role)
-    _set_quota(role, cpus)
-
-
-def _set_quota(role, cpus):
-    sdk_quota.create_quota(role, cpus=cpus)
 
 
 def _spawn_threads(names, target, daemon=False, event=None, **kwargs) -> List[ResultThread]:
@@ -290,159 +265,6 @@ def _spawn_threads(names, target, daemon=False, event=None, **kwargs) -> List[Re
         thread_list.append(t)
         t.start()
     return thread_list
-
-
-def _create_service_accounts(service_name, security=None):
-    if security == DCOS_SECURITY.strict:
-        try:
-            start = time.time()
-            log.info("Creating service accounts for '{}'"
-                     .format(service_name))
-            sa_name = "{}-principal".format(service_name)
-            sa_secret = "jenkins-{}-secret".format(service_name)
-            sdk_security.create_service_account(
-                    sa_name, sa_secret, service_name)
-
-            sdk_security.grant_permissions(
-                    'root', '*', sa_name)
-
-            sdk_security.grant_permissions(
-                    'root', SHARED_ROLE, sa_name)
-            end = time.time()
-            ACCOUNTS[service_name] = {}
-            ACCOUNTS[service_name]["sa_name"] = sa_name 
-            ACCOUNTS[service_name]["sa_secret"] = sa_secret
-            TIMINGS["serviceaccounts"][service_name] = end - start
-        except Exception as e:
-            log.warning("Error encountered while creating service account: {}".format(e))
-            raise e
-
-
-def _install_jenkins(service_name,
-                     client=None,
-                     security=None,
-                     **kwargs):
-    """Install Jenkins service.
-
-    Args:
-        service_name: Service Name or Marathon ID (same thing)
-        client: Marathon client connection
-        external_volume: Enable external volumes
-    """
-    def _wait_for_deployment(app_id, client):
-        with LOCK:
-            res = len(client.get_deployments(app_id)) == 0
-        return res
-
-    try:
-        if security == DCOS_SECURITY.strict:
-            kwargs['strict_settings'] = {
-                'secret_name':  ACCOUNTS[service_name]["sa_secret"],
-                'mesos_principal': ACCOUNTS[service_name]["sa_name"],
-            }
-            kwargs['service_user'] = 'root'
-
-        log.info("Installing jenkins '{}'".format(service_name))
-        jenkins.install(service_name,
-                        client,
-                        role=SHARED_ROLE,
-                        fn=_wait_for_deployment,
-                        **kwargs)
-    except Exception as e:
-        log.warning("Error encountered while installing Jenkins: {}".format(e))
-        raise e
-
-
-def _cleanup_jenkins_install(service_name, **kwargs):
-    """Delete all jobs and uninstall Jenkins instance.
-
-    Args:
-        service_name: Service name or Marathon ID
-    """
-    if service_name.startswith('/'):
-        service_name = service_name[1:]
-    try:
-        log.info("Removing all jobs on {}.".format(service_name))
-        jenkins.delete_all_jobs(service_name, retry=False)
-    finally:
-        log.info("Uninstalling {}.".format(service_name))
-        jenkins.uninstall(service_name,
-                          package_name=config.PACKAGE_NAME,
-                          **kwargs)
-
-
-def _create_jobs(service_name, **kwargs):
-    """Create jobs on deployed Jenkins instances.
-
-    All functionality around creating jobs should go here.
-
-    Args:
-        service_name: Jenkins instance name
-    """
-    m_label = _create_executor_configuration(service_name)
-    _launch_jobs(service_name, label=m_label, **kwargs)
-
-
-def _create_executor_configuration(service_name: str) -> str:
-    """Create a new Mesos Slave Info configuration with a random name.
-
-    Args:
-        service_name: Jenkins instance to add the label
-
-    Returns: Random name of the new config created.
-
-    """
-    mesos_label = "mesos"
-    jenkins.create_mesos_slave_node(mesos_label,
-                                    service_name=service_name,
-                                    dockerImage=DOCKER_IMAGE,
-                                    executorCpus=0.3,
-                                    executorMem=1800,
-                                    idleTerminationMinutes=1,
-                                    timeout_seconds=600)
-    return mesos_label
-
-
-def _launch_jobs(service_name: str,
-                 jobs: int = 1,
-                 single: bool = False,
-                 delay: int = 3,
-                 duration: int = 600,
-                 label: str = None,
-                 scenario: str = None):
-    """Create configured number of jobs with given config on Jenkins
-    instance identified by `service_name`.
-
-    Args:
-        service_name: Jenkins service name
-        jobs: Number of jobs to create and run
-        single: Single Use Mesos agent on (true) or off
-        delay: A job should run every X minute(s)
-        duration: Time, in seconds, for the job to sleep
-        label: Mesos label for jobs to use
-    """
-    job_name = 'generator-job'
-    single_use_str = '100' if single else '0'
-
-    seed_config_xml = jenkins._get_job_fixture('gen-job.xml')
-    seed_config_str = ElementTree.tostring(
-            seed_config_xml.getroot(),
-            encoding='utf8',
-            method='xml')
-    jenkins.create_seed_job(service_name, job_name, seed_config_str)
-    log.info(
-            "Launching {} jobs every {} minutes with single-use "
-            "({}).".format(jobs, delay, single))
-
-    jenkins.run_job(service_name,
-                    job_name,
-                    timeout_seconds=600,
-                    **{'JOBCOUNT':       str(jobs),
-                       'AGENT_LABEL':    label,
-                       'SINGLE_USE':     single_use_str,
-                       'EVERY_XMIN':     str(delay),
-                       'SLEEP_DURATION': str(duration),
-                       'SCENARIO':       scenario})
 
 
 def _wait_on_threads(thread_list: List[Thread],
