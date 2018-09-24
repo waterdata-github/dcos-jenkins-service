@@ -63,12 +63,6 @@ def pytest_addoption(parser):
     parser.addoption('--batch-size', action='store', default=1,
                      help='batch size to deploy jenkins masters in'
                           '(default: 1).')
-    parser.addoption('--pinned-hostname', action='store', type=str,
-                     help='agent host to pin storage volumes to', required=True)
-    parser.addoption('--pinned-host-volume', action='store', type=str,
-                     help='storage volume location for jenkins data. ', required=True)
-
-
 
 @pytest.fixture
 def master_count(request) -> int:
