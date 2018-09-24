@@ -7,14 +7,16 @@ Pre-requisites. Have the following environment variables exported with appropria
     * DCOS_LOGIN_PASSWORD
 
 From the CLI, this can be run as follows:
-    $ PYTEST_ARGS="--pinned-hostname=10.0.2.108 \
-                --pinned-host-volume=/tmp/jenkins-soak \
-                --datadog-api-key=<datadog_api_key> \
-                --datadog-plugin-hostname=jenkins.soakCLUSTERVERSIONHERE.mesosphe.re" ./test.sh -m scale jenkins
+    $ PYTEST_ARGS="--masters=3 --jobs=10" ./test.sh -m scale jenkins
+To specify a CPU quota (what JPMC does) then run:
+    $ PYTEST_ARGS="--masters=3 --jobs=10 --cpu-quota=10.0" ./test.sh -m scale jenkins
+To enable single use:
+    $ PYTEST_ARGS="--masters=3 --jobs=10 --single-use" ./test.sh -m scale jenkins
 And to clean-up a test run of Jenkins instances:
     $ ./test.sh -m scalecleanup jenkins
 
 This supports the following configuration params:
+    * Number of Jenkins masters (--masters)
     * Number of jobs for each master (--jobs); this will be the same
         count on each Jenkins instance. --jobs=10 will create 10 jobs
         on each instance.
@@ -24,6 +26,7 @@ This supports the following configuration params:
         and applies to all jobs equally. (default: False)
     * How long, in seconds, for a job to "work" (sleep)
         (--work-duration)
+    * CPU quota (--cpu-quota); 0.0 to disable / no quota
     * To enable or disable External Volumes (--external-volume);
         this uses rexray (default: False)
     * What test scenario to run (--scenario); supported values:
@@ -34,13 +37,9 @@ This supports the following configuration params:
         we need to pin installations to specific agents on service restarts.
         - Must be a private node, else Marathon won't deploy. (i.e musn't have public_ip attribute)
     * Location of host-volume. (--pinned-host-volume=/tmp/jenkins)
-    * DataDog API Key (--datadog-api-key)
-        - Needed to for the DataDog metrics service.
-    * DataDog HostName (--datadog-plugin-hostname)
-        - Hostname reported to the DataDog metrics service.
 For additional details see conftest.py in the root folder.
 """
-import pprint
+
 import logging
 import time
 from threading import Thread, Lock
@@ -63,64 +62,155 @@ from sdk_dcos import DCOS_SECURITY
 
 log = logging.getLogger(__name__)
 
+# # initial timeout waiting on deployments
+DEPLOY_TIMEOUT = 15 * 60  # 15 mins
+JOB_RUN_TIMEOUT = 10 * 60  # 10 mins
+SERVICE_ACCOUNT_TIMEOUT = 15 * 60 # 5 mins
+
+TIMINGS = {"deployments": {}, "serviceaccounts": {}}
+
+
+class ResultThread(Thread):
+    """A thread that stores the result of the run command."""
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self._result = None
+        self._event = None
+
+    @property
+    def result(self) -> bool:
+        """Run result
+
+        Returns: True if completed successfully.
+
+        """
+        return bool(self._result)
+
+    @property
+    def event(self):
+        return self._event
+
+    @event.setter
+    def event(self, event):
+        self._event = event
+
+    def run(self) -> None:
+        start = time.time()
+        try:
+            super().run()
+            self._result = True
+        except Exception as e:
+            self._result = False
+        finally:
+            end = time.time()
+            if self.event:
+                TIMINGS[self.event][self.name] = end - start
+
+
 @pytest.mark.scale
-def test_scaling_scale(job_count,
+def test_scaling_scale(master_count,
+                      job_count,
                       single_use: bool,
                       run_delay,
+                      cpu_quota,
                       work_duration,
+                      mom,
                       external_volume: bool,
                       scenario,
+                      min_index,
+                      max_index,
+                      batch_size,
                       pinned_hostname,
-                      pinned_host_volume,
-                      datadog_api_key,
-                      datadog_plugin_hostname) -> None:
+                      pinned_host_volume) -> None:
 
-    """Launch a soak test scenario.
+    """Launch a scale test scenario. This does not verify the results
+    of the test, but does ensure the instances and jobs were created.
 
-    Configuration, installation and jobs are launched serially.
+    The installation is run in threads, but the job creation and
+    launch is then done serially after all Jenkins instances have
+    completed installation.
 
     Args:
+        master_count: Number of Jenkins masters or instances
         job_count: Number of Jobs on each Jenkins master
         single_use: Mesos Single-Use Agent on (true) or off (false)
         run_delay: Jobs should run every X minute(s)
+        cpu_quota: CPU quota (0.0 to disable)
         work_duration: Time, in seconds, for generated jobs to sleep
-        scenario: Jenkins senarios, one of 'sleep' or 'buildmarathon'
-        pinned_hostname: IP address of node to pin Jenkins to.
-        pinned_host_volume: Location of temporary storage on specified host.
-        datadog_api_key: API required for DataDog metrics service.
-        datadog_plugin_hostname: Hostname reported to the DataDog metrics service.
+        mom: Marathon on Marathon instance name
+        external_volume: External volume on rexray (true) or local volume (false)
+        min_index: minimum index to begin jenkins suffixes at
+        max_index: maximum index to end jenkins suffixes at
+        batch_size: batch size to deploy jenkins instances in
     """
     security_mode = sdk_dcos.get_security_mode()
-    
+    if mom and cpu_quota != 0.0:
+        with shakedown.marathon_on_marathon(mom):
+            jenkins_common.setup_quota(SHARED_ROLE, cpu_quota)
+
     # create marathon client
-    marathon_client = shakedown.marathon.create_client()
+    if mom:
+        with shakedown.marathon_on_marathon(mom):
+            marathon_client = shakedown.marathon.create_client()
+    else:
+        marathon_client = shakedown.marathon.create_client()
 
-    service_name = "jenkins-soak"
-    
-    # create service accounts
+    masters = []
+    if min_index == -1 or max_index == -1:
+        masters = ["jenkins{}".format(index) for index in
+                   range(0, int(master_count))]
+
+        #Explicitly set these values for the loop below
+        min_index = 0
+        max_index = master_count
+        batch_size = 1
+    else:
+        #max and min indexes are specified
+        #NOTE: using min/max will override master count
+        masters = ["jenkins{}".format(index) for index in
+                    range(min_index, max_index)]
+    # create service accounts in parallel
     sdk_security.install_enterprise_cli()
+    service_account_threads = _spawn_threads(masters,
+                                            jenkins_common.create_service_accounts,
+                                            security=security_mode)
 
-    # create service accounts
-    jenkins_common.create_service_accounts(service_name, security=security_mode)
-
+    thread_failures = _wait_and_get_failures(service_account_threads,
+                                             timeout=SERVICE_ACCOUNT_TIMEOUT)
     # launch Jenkins services
-    jenkins_common.install_jenkins(service_name,
-                                    client=marathon_client,
-                                    external_volume=external_volume,
-                                    security=security_mode,
-                                    pinned_hostname=pinned_hostname,
-                                    pinned_host_volume=pinned_host_volume)
-   
-    # install DataDog metrics plugin
-    jenkins_common.install_jenkins_datadog_metrics_plugin(service_name, datadog_plugin_hostname, datadog_api_key)
-    
-    # the rest of the commands require a running Jenkins instance
-    jenkins_common.create_jobs(service_name,
-                                jobs=job_count,
-                                single=single_use,
-                                delay=run_delay,
-                                duration=work_duration,
-                                scenario=scenario)
+    current = 0
+    end = max_index - min_index
+    while current + batch_size <= end:
+        batched_masters = masters[current:current+batch_size]
+        install_threads = _spawn_threads(batched_masters,
+                                         jenkins_common.install_jenkins,
+                                         event='deployments',
+                                         client=marathon_client,
+                                         external_volume=external_volume,
+                                         security=security_mode,
+                                         daemon=True,
+                                         mom=mom,
+                                         pinned_hostname=pinned_hostname,
+                                         pinned_host_volume=pinned_host_volume)
+        thread_failures = _wait_and_get_failures(install_threads,
+                                                 timeout=DEPLOY_TIMEOUT)
+        thread_names = [x.name for x in thread_failures]
+
+        # the rest of the commands require a running Jenkins instance
+        deployed_masters = [x for x in batched_masters if x not in thread_names]
+        job_threads = _spawn_threads(deployed_masters,
+                                     jenkins_common.create_jobs,
+                                     jobs=job_count,
+                                     single=single_use,
+                                     delay=run_delay,
+                                     duration=work_duration,
+                                     scenario=scenario)
+        _wait_on_threads(job_threads, JOB_RUN_TIMEOUT)
+        r = json.dumps(TIMINGS)
+        print(r)
+        current = current + batch_size
+
 
 @pytest.mark.scalecleanup
 def test_cleanup_scale(mom) -> None:
@@ -142,7 +232,89 @@ def test_cleanup_scale(mom) -> None:
         if service_id == 'jenkins':
             continue
         service_ids.append(service_id)
-  
-    # remove each service_id
-    for service_id in service_ids:
-        jenkins_common.cleanup_jenkins_install(service_id, mom=mom) 
+
+    cleanup_threads = _spawn_threads(service_ids,
+                                     jenkins_common.cleanup_jenkins_install,
+                                     mom=mom,
+                                     daemon=False)
+    _wait_and_get_failures(cleanup_threads, timeout=JOB_RUN_TIMEOUT)
+
+
+def _spawn_threads(names, target, daemon=False, event=None, **kwargs) -> List[ResultThread]:
+    """Create and start threads running target. This will pass
+    the thread name to the target as the first argument.
+
+    Args:
+        names: Thread names
+        target: Function to run in thread
+        **kwargs: Keyword args for target
+
+    Returns:
+        List of threads handling target.
+    """
+    thread_list = list()
+    for service_name in names:
+        # setDaemon allows the main thread to exit even if
+        # these threads are still running.
+        t = ResultThread(target=target,
+                         daemon=daemon,
+                         name=service_name,
+                         args=(service_name,),
+                         kwargs=kwargs)
+        t.event = event
+        thread_list.append(t)
+        t.start()
+    return thread_list
+
+
+def _wait_on_threads(thread_list: List[Thread],
+                     timeout=DEPLOY_TIMEOUT) -> List[Thread]:
+    """Wait on the threads in `install_threads` until a specified time
+    has elapsed.
+
+    Args:
+        thread_list: List of threads
+        timeout: Timeout is seconds
+
+    Returns:
+        List of threads that are still running.
+
+    """
+    start_time = current_time = time.time()
+    for thread in thread_list:
+        remaining = timeout - (current_time - start_time)
+        if remaining < 1:
+            break
+        thread.join(timeout=remaining)
+        current_time = time.time()
+    active_threads = [x for x in thread_list if x.isAlive()]
+    return active_threads
+
+
+def _wait_and_get_failures(thread_list: List[ResultThread],
+                           **kwargs) -> Set[Thread]:
+    """Wait on threads to complete or timeout and log errors.
+
+    Args:
+        thread_list: List of threads to wait on
+
+    Returns: A list of service names that failed or timed out.
+
+    """
+    timeout_failures = _wait_on_threads(thread_list, **kwargs)
+    timeout_names = [x.name for x in timeout_failures]
+    if timeout_names:
+        log.warning("The following {:d} Jenkins instance(s) failed to "
+                    "complete in {:d} minutes: {}"
+                    .format(len(timeout_names),
+                            DEPLOY_TIMEOUT // 60,
+                            ', '.join(timeout_names)))
+    # the following did not timeout, but failed
+    run_failures = [x for x in thread_list if not x.result]
+    run_fail_names = [x.name for x in run_failures]
+    if run_fail_names:
+        log.warning("The following {:d} Jenkins instance(s) "
+                    "encountered an error: {}"
+                    .format(len(run_fail_names),
+                            ', '.join(run_fail_names)))
+    return set(timeout_failures + run_failures)
