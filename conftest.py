@@ -18,6 +18,21 @@ logging.basicConfig(
 
 
 def pytest_addoption(parser):
+    #Required for all tests.
+    parser.addoption('--pinned-hostname', action='store', type=str,
+                     help='agent host to pin storage volumes to', required=True)
+   
+    #Needed for scale-testing, missing values will prompt scale test to error out.
+    parser.addoption('--datadog-api-key', action='store', type=str, default=None,
+                     help='datadog metrics api key')
+    parser.addoption('--datadog-plugin-hostname', action='store', default=None,
+                     type=str, help='hostname reported to datadog metrics service')
+
+    #Default value for host-volume, can be overriden.
+    parser.addoption('--pinned-host-volume', action='store', type=str, default='/tmp/jenkins',
+                     help='storage volume location for jenkins data. ')
+
+    #Default values and arguments for load testing.
     parser.addoption('--masters', action='store', default=1, type=int,
                      help='Number of Jenkins masters to launch.')
     parser.addoption('--jobs', action='store', default=1, type=int,
@@ -48,53 +63,38 @@ def pytest_addoption(parser):
     parser.addoption('--batch-size', action='store', default=1,
                      help='batch size to deploy jenkins masters in'
                           '(default: 1).')
-    parser.addoption('--pinned-hostname', action='store', type=str,
-                     help='agent host to pin storage volumes to', required=True)
-    parser.addoption('--pinned-host-volume', action='store', type=str,
-                     help='storage volume location for jenkins data. ', required=True)
-
-
-
 
 @pytest.fixture
 def master_count(request) -> int:
     return int(request.config.getoption('--masters'))
 
-
 @pytest.fixture
 def job_count(request) -> int:
     return int(request.config.getoption('--jobs'))
-
 
 @pytest.fixture
 def single_use(request) -> bool:
     return bool(request.config.getoption('--single-use'))
 
-
 @pytest.fixture
 def run_delay(request) -> int:
     return int(request.config.getoption('--run-delay'))
-
 
 @pytest.fixture
 def cpu_quota(request) -> float:
     return float(request.config.getoption('--cpu-quota'))
 
-
 @pytest.fixture
 def work_duration(request) -> int:
     return int(request.config.getoption('--work-duration'))
-
 
 @pytest.fixture
 def mom(request) -> str:
     return request.config.getoption('--mom')
 
-
 @pytest.fixture
 def scenario(request) -> str:
     return request.config.getoption('--scenario')
-
 
 @pytest.fixture
 def external_volume(request) -> bool:
@@ -120,5 +120,11 @@ def pinned_hostname(request) -> str:
 def pinned_host_volume(request) -> str:
     return request.config.getoption('--pinned-host-volume')
 
+@pytest.fixture
+def datadog_api_key(request) -> str:
+    return request.config.getoption('--datadog-api-key')
 
+@pytest.fixture
+def datadog_plugin_hostname(request) -> str:
+    return request.config.getoption('--datadog-plugin-hostname')
 

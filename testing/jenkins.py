@@ -278,3 +278,10 @@ def _get_job_fixture(job_name):
     """
     here = os.path.dirname(__file__)
     return ElementTree.parse(os.path.join(here, 'testData', job_name))
+
+def install_datadog_metrics_plugin(service_name, jenkins_hostname, datadog_api_key):
+    
+    #Configure and install the DataDog metrics plugin.
+    jenkins_remote_access.install_datadog_plugin(service_name)
+    jenkins_remote_access.configure_datadog_plugin(jenkins_hostname, datadog_api_key, service_name)
+

@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 
 import logging
+import jenkins
 from string import Template
+import time
 
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG, format="%(message)s")
@@ -120,13 +122,13 @@ def changePassword = { new_username, new_password ->
             )[0].getStore()
 
         def result = credentials_store.updateCredentials(
-            com.cloudbees.plugins.credentials.domains.Domain.global(), 
-            c, 
+            com.cloudbees.plugins.credentials.domains.Domain.global(),
+            c,
             new UsernamePasswordCredentialsImpl(c.scope, c.id, c.description, new_username, new_password)
             )
 
         if (result) {
-            println "changed jenkins creds" 
+            println "changed jenkins creds"
         } else {
             println "failed to change jenkins creds"
         }
@@ -155,13 +157,13 @@ def changePassword = { new_username, new_password ->
             )[0].getStore()
 
         def result = credentials_store.updateCredentials(
-            com.cloudbees.plugins.credentials.domains.Domain.global(), 
-            c, 
+            com.cloudbees.plugins.credentials.domains.Domain.global(),
+            c,
             new UsernamePasswordCredentialsImpl(c.scope, c.id, c.description, new_username, new_password)
             )
 
         if (result) {
-            println "changed jenkins creds" 
+            println "changed jenkins creds"
         } else {
             println "failed to change jenkins creds"
         }
@@ -173,6 +175,57 @@ def changePassword = { new_username, new_password ->
 changePassword('$userName', 'abcdefg')
 
 cloud.restartMesos()
+"""
+
+INSTALL_DATADOG = """
+import jenkins.model.*
+import java.util.logging.Logger
+def logger = Logger.getLogger("")
+def installed = false
+def initialized = false
+def pluginParameter="Datadog"
+def plugins = pluginParameter.split()
+logger.info("" + plugins)
+def instance = Jenkins.getInstance()
+def pm = instance.getPluginManager()
+def uc = instance.getUpdateCenter()
+plugins.each {
+  logger.info("Checking " + it)
+  if (!pm.getPlugin(it)) {
+    logger.info("Looking UpdateCenter for " + it)
+    if (!initialized) {
+      uc.updateAllSites()
+      initialized = true
+    }
+    def plugin = uc.getPlugin(it)
+    if (plugin) {
+      logger.info("Installing " + it)
+    	def installFuture = plugin.deploy()
+      while(!installFuture.isDone()) {
+        logger.info("Waiting for plugin install: " + it)
+        sleep(3000)
+      }
+      installed = true
+    }
+  }
+}
+if (installed) {
+  logger.info("Plugins installed, initializing a restart!")
+  instance.save()
+  instance.restart()
+}
+"""
+
+CONFIGURE_DATADOG = """
+import jenkins.model.*
+import org.datadog.jenkins.plugins.datadog.DatadogBuildListener
+
+def j = Jenkins.getInstance()
+def d = j.getDescriptor("org.datadog.jenkins.plugins.datadog.DatadogBuildListener")
+d.setHostname('$hostname')
+d.setTagNode(true)
+d.setApiKey('$apikey')
+d.save()
 """
 
 
@@ -266,6 +319,27 @@ def change_mesos_creds(mesos_username, service_name):
         ),
         service_name)
 
+def install_datadog_plugin(service_name):
+    ret = make_post(
+        Template(INSTALL_DATADOG).substitute(
+            {
+            }
+        ),
+        service_name)
+    # we're restarting Jenkins, so we sleep after the post to make sure Jenkins is up.
+    # TODO: this might be flaky, come up with a better test to see if Jenkins is up.
+    time.sleep(60)
+    return ret
+
+def configure_datadog_plugin(jenkins_hostname, datadog_api_key, service_name):
+    return make_post(
+        Template(CONFIGURE_DATADOG).substitute(
+            {
+                'hostname': jenkins_hostname,
+                'apikey': datadog_api_key,
+            }
+        ),
+        service_name)
 
 def make_post(
         post_body,
