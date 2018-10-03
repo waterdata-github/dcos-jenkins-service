@@ -18,6 +18,21 @@ logging.basicConfig(
 
 
 def pytest_addoption(parser):
+    #Required for all tests.
+    parser.addoption('--pinned-hostname', action='store', type=str,
+                     help='agent host to pin storage volumes to', required=True)
+   
+    #Needed for scale-testing, missing values will prompt scale test to error out.
+    parser.addoption('--datadog-api-key', action='store', type=str, default=None,
+                     help='datadog metrics api key')
+    parser.addoption('--datadog-plugin-hostname', action='store', default=None,
+                     type=str, help='hostname reported to datadog metrics service')
+
+    #Default value for host-volume, can be overriden.
+    parser.addoption('--pinned-host-volume', action='store', type=str, default='/tmp/jenkins',
+                     help='storage volume location for jenkins data. ')
+
+    #Default values and arguments for load testing.
     parser.addoption('--masters', action='store', default=1, type=int,
                      help='Number of Jenkins masters to launch.')
     parser.addoption('--jobs', action='store', default=1, type=int,
@@ -105,3 +120,20 @@ def max_index(request) -> int:
 @pytest.fixture
 def batch_size(request) -> int:
     return int(request.config.getoption('--batch-size'))
+
+@pytest.fixture
+def pinned_hostname(request) -> str:
+    return request.config.getoption('--pinned-hostname')
+
+@pytest.fixture
+def pinned_host_volume(request) -> str:
+    return request.config.getoption('--pinned-host-volume')
+
+@pytest.fixture
+def datadog_api_key(request) -> str:
+    return request.config.getoption('--datadog-api-key')
+
+@pytest.fixture
+def datadog_plugin_hostname(request) -> str:
+    return request.config.getoption('--datadog-plugin-hostname')
+

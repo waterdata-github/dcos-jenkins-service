@@ -19,7 +19,9 @@ def install(service_name, client,
             strict_settings=None,
             service_user=None,
             fn=None,
-            mom=None):
+            mom=None,
+            pinned_hostname=None,
+            pinned_host_volume=None):
     """Install a Jenkins instance and set the service name to
     `service_name`. This does not wait for deployment to finish.
 
@@ -69,6 +71,12 @@ def install(service_name, client,
     if service_user:
         options['service']['user'] = service_user
 
+    if pinned_hostname and pinned_host_volume:
+        options["storage"] = {
+            "pinned-hostname": pinned_hostname,
+            "host-volume": pinned_host_volume
+        }
+
     # get the package json for given options
     pkg_json = sdk_install.get_package_json('jenkins', None, options)
     if mom:
@@ -77,7 +85,9 @@ def install(service_name, client,
     time_wait(lambda: fn(service_name, client),
               TIMEOUT_SECONDS,
               sleep_seconds=20)
-
+    if strict_settings:	
+        jenkins_remote_access.change_mesos_creds(	
+            strict_settings['mesos_principal'], service_name)
 
 def uninstall(service_name, package_name='jenkins', role=None, mom=None):
     """Uninstall a Jenkins instance. This does not wait for deployment
@@ -268,3 +278,10 @@ def _get_job_fixture(job_name):
     """
     here = os.path.dirname(__file__)
     return ElementTree.parse(os.path.join(here, 'testData', job_name))
+
+def install_datadog_metrics_plugin(service_name, jenkins_hostname, datadog_api_key):
+    
+    #Configure and install the DataDog metrics plugin.
+    jenkins_remote_access.install_datadog_plugin(service_name)
+    jenkins_remote_access.configure_datadog_plugin(jenkins_hostname, datadog_api_key, service_name)
+
